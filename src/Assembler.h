@@ -4,6 +4,8 @@
 #include <string>
 #include <unordered_map>
 
+class LabelTable;
+
 class Assembler {
 public:
 	explicit Assembler(std::string filename):
@@ -29,6 +31,9 @@ private:
 
 	//standard procedures
 	static std::unordered_map<std::string, int> sp_table;
+
+	//label table
+	LabelTable *lb_table = nullptr;
 };
 
 
