@@ -1,12 +1,154 @@
-#include "Assembler.h"
-#include "p5_common.h"
+#include <iostream>
 
-std::unordered_map<std::string, int> Assembler::instr;
+#include "p5_common.h"
+#include "p5_errors.h"
+
+#include "Assembler.h"
+#include "LabelTable.h"
+#include "Lexer.h"
+#include "addr_ops.h"
+
+std::unordered_map<std::string, P5::ins_t> Assembler::instr;
 std::unordered_map<std::string, int> Assembler::sp_table;
-std::unordered_map<int, Assembler::OpCodeInfo> Assembler::op_codes;
+std::unordered_map<P5::ins_t, Assembler::OpCodeInfo> Assembler::op_codes;
+
+Assembler::Assembler(P5::store_t &store, std::string filename):
+	store(store),
+	filename(std::move(filename)) {
+	lb_table = new LabelTable(store);
+	lexer = new Lexer(this->filename);
+}
+
+Assembler::~Assembler() {
+	delete lb_table;
+	delete lexer;
+}
 
 void Assembler::load() {
+	std::cout << "loading " << filename << std::endl;
+	pc = 0;
+	cp = P5::max_store-1;
+	lexer->start();
+	generate();
+}
 
+void Assembler::generate() {
+	bool again = true;
+	while (again) {
+		if (lexer->is_eof()) {
+			P5_ERR("unexpected end of file\n");
+		}
+		printf("assembling line %d\n", lexer->line_num());
+		char c = lexer->get<char>();
+		switch (c) {
+			//comment
+			case 'i': {
+				printf("");
+				lexer->get_line();
+				break;
+			}
+			case 'l': {
+				int x = lexer->get<int>();
+				c = lexer->get<char>();
+				int lbl_val;
+				if (c == '=') {
+					lbl_val = lexer->get<int>();
+				} else {
+					lbl_val = pc;
+				}
+				printf("label %d %d %d\n", x, c, lbl_val);
+				lb_table->update(x, lbl_val);
+				lexer->get_line();
+				break;
+			}
+			case 'q': {
+				again = false;
+				lexer->get_line();
+				break;
+			}
+			//source line, TODO: process this
+			case ':': {
+				lexer->get_line();
+				break;
+			}
+			case ' ': {
+				assemble();
+				lexer->get_line();
+				break;
+			}
+			default: {
+				P5_ERR("invalid char %c(%d)\n", c, c);
+			}
+		}
+	}
+};
+
+void Assembler::assemble() {
+	std::string name = lexer->get<std::string>();
+//	std::string name = "tes";
+	printf("instr %s\n", name.c_str());
+	auto ins_it = instr.find(name);
+	if (ins_it == instr.end()) {
+		P5_ERR("illegal instruction: %s\n", name.c_str());
+	}
+	auto op_code = ins_it->second;
+	switch (op_code) {
+		//lod,str,lda,lip
+		case 0:
+		case 105:
+		case 106:
+		case 107:
+		case 108:
+		case 109:
+		case 2:
+		case 70:
+		case 71:
+		case 72:
+		case 73:
+		case 74:
+		case 4:
+		case 120: {
+			auto p = lexer->get<P5::lvl_t>();
+			auto q = lexer->get<P5::addr_t>();
+			store_pc(op_code);
+			store_pc(p);
+			store_pc(q);
+			break;
+		}
+		//cup
+		case 12: {
+			auto p = lexer->get<P5::lvl_t>();
+			auto q = label_search();
+			store_pc(op_code);
+			store_pc(p);
+			store_pc(q);
+			break;
+		}
+		default: {
+			P5_ERR("unsupported instruction: %d\n", op_code);
+		}
+	}
+}
+
+template<typename T>
+void Assembler::store_pc(T val) {
+	if (pc > cp-sizeof(T)) {
+		P5_ERR("Program code overflow\n");
+	}
+	put_addr(store, pc, val);
+	pc += sizeof(T);
+}
+
+P5::addr_t Assembler::label_search() {
+	char c;
+	do {
+		lexer->get<char>();
+		c = lexer->peek();
+	} while (c != 'l' && c != '\n');
+	lexer->get<char>();
+	auto x = lexer->get<int>();
+	auto q = lb_table->lookup(x, pc);
+	return q;
 }
 
 #define ins_op(name, opcode, has_p_p, q_len_p) instr[name] = opcode; op_codes[opcode] = {.has_p = (has_p_p), .q_len = (q_len_p)};

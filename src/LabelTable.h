@@ -22,6 +22,8 @@ private:
 	} LabelInfo;
 	std::map<int, LabelInfo> lb_storage;
 	P5::store_t &store;
+
+	LabelInfo *find_or_insert_lbl_info(int lbl);
 };
 
 

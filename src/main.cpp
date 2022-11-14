@@ -3,5 +3,8 @@
 
 int main() {
 	Assembler::init();
-	std::cout << "Hello" << std::endl;
+	P5::store_t store;
+	store.resize(P5::max_store);
+	Assembler assembler(store, "../tests/test2.txt");
+	assembler.load();
 }
