@@ -124,6 +124,64 @@ void Assembler::assemble() {
 			store_pc(q);
 			break;
 		}
+		//mst, cip
+		case 11:
+		case 113: {
+			auto p = lexer->get<P5::lvl_t>();
+			store_pc(op_code);
+			store_pc(p);
+			break;
+		}
+		//equm,neqm,geqm,grtm,leqm,lesm
+		case 142:
+		case 148:
+		case 154:
+		case 160:
+		case 166:
+		case 172:
+		//lao,ixa,mov,dmp,swp
+		case 5:
+		case 16:
+		case 55:
+		case 117:
+		case 118:
+		//ldo,sro,ind,inc,dec
+		case 1:
+		case 65:
+		case 66:
+		case 67:
+		case 68:
+		case 69:
+		case 3:
+		case 75:
+		case 76:
+		case 77:
+		case 78:
+		case 79:
+		case 9:
+		case 85:
+		case 86:
+		case 87:
+		case 88:
+		case 89:
+		case 10:
+		case 90:
+		case 91:
+		case 92:
+		case 93:
+		case 94:
+		case 57:
+		case 100:
+		case 101:
+		case 102:
+		case 103:
+		case 104: {
+			auto q = lexer->get<P5::addr_t>();
+			store_pc(op_code);
+			store_pc(q);
+			break;
+		}
+
 		default: {
 			P5_ERR("unsupported instruction: %d\n", op_code);
 		}
