@@ -181,7 +181,16 @@ void Assembler::assemble() {
 			store_pc(q);
 			break;
 		}
-
+		//pck, upk
+		case 63:
+		case 64: {
+			auto q = lexer->get<P5::addr_t>();
+			auto q1 = lexer->get<P5::addr_t>();
+			store_pc(op_code);
+			store_pc(q);
+			store_pc(q1);
+			break;
+		}
 		default: {
 			P5_ERR("unsupported instruction: %d\n", op_code);
 		}
