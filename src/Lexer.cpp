@@ -28,11 +28,20 @@ void Lexer::get_line() {
 	strm.ignore(std::numeric_limits<std::streamsize>::max(), strm.widen('\n'));
 }
 
+void Lexer::skip_spaces() {
+	while (true) {
+		if (strm.peek() != ' ') {
+			break;
+		}
+	}
+}
+
 int Lexer::line_num() {
 	return line;
 }
 
-template<> char Lexer::get<char>() {
+template<> 
+char Lexer::get<char>() {
 	char val = ' ';
 	if (strm.peek() == '\n') {
 		return val;

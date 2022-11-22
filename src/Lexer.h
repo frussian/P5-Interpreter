@@ -19,20 +19,9 @@ public:
 
 	template <typename T>
 	T get();
-//	char get<char>() {
-//		char val;
-//		printf("get char\n");
-//		strm >> std::noskipws >> val;
-//		return val;
-//	}
-//	char get() {
-//		char val;
-//		printf("get char\n");
-//		strm >> std::noskipws >> val;
-//		return val;
-//	}
 
 	void get_line();
+	void skip_spaces();
 	int line_num();
 	char peek();
 private:

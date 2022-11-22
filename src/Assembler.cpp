@@ -1,4 +1,5 @@
 #include <iostream>
+#include <set>
 
 #include "p5_common.h"
 #include "p5_errors.h"
@@ -9,8 +10,11 @@
 #include "addr_ops.h"
 
 std::unordered_map<std::string, P5::ins_t> Assembler::instr;
-std::unordered_map<std::string, int> Assembler::sp_table;
+std::unordered_map<std::string, P5::ins_t> Assembler::sp_table;
 std::unordered_map<P5::ins_t, Assembler::OpCodeInfo> Assembler::op_codes;
+
+//"Pascal Implementation" Book
+//https://homepages.cwi.nl/~steven/pascal/book/pascalimplementation.html
 
 Assembler::Assembler(P5::store_t &store, std::string filename):
 	store(store),
@@ -191,9 +195,303 @@ void Assembler::assemble() {
 			store_pc(q1);
 			break;
 		}
+		//ujp,fjp,xjp,lpa,tjp
+		case 23:
+		case 24:
+		case 25:
+		case 119: 
+		//ents,ente
+		case 13:
+		case 173: {
+			auto q = label_search();
+			store_pc(op_code);
+			store_pc(q);
+			break;
+		}
+		//ipj,lpa
+		case 112:
+		case 114: {
+			auto p = lexer->get<P5::lvl_t>();
+			auto q = label_search();
+			store_pc(op_code);
+			store_pc(p);
+			store_pc(q);
+			break;
+
+		}
+		//csp
+		case 15: {
+			auto sp_name = lexer->get<std::string>();
+			auto sp_it = sp_table.find(sp_name);
+			if (sp_it == sp_table.end()) {
+				P5_ERR("undefined standard procedure/function %s\n", sp_name.c_str());
+			}
+			store_pc(op_code);
+			store_pc(sp_it->second);
+			break;
+		}
+		//ldc
+		case 123: {
+			auto i = lexer->get<int>();
+			store_pc(op_code);
+			if (pc + sizeof(int) > cp) {
+				P5_ERR("Program code overflow %d\n");
+			}
+			store_pc(i);
+			break;
+		}
+		case 124: {
+			auto r = lexer->get<double>();
+			store_pc(op_code);
+			if (pc + sizeof(double) > cp) {
+				P5_ERR("Constant table overflow %d\n");
+			}
+			cp -= sizeof(double)-1;
+			put_addr(store, cp, r);
+			store_pc(cp);
+			cp--;
+			break;
+		}
+		//5
+		//4
+		//3
+		//2
+		//1
+		//0
+		case 125: {
+			store_pc(op_code);
+			break;
+		}
+		case 126: {
+			int r = lexer->get<int>();
+			store_pc(op_code);
+			if (pc + sizeof(bool) > cp) {
+				P5_ERR("Program code overflow %d\n");
+			}
+			store_pc(r == 1);
+			break;
+		}
+		case 127: {
+			lexer->skip_spaces();
+			auto c = lexer->get<char>();
+			if (c != '\'') {
+				P5_ERR("expected \', got %c\n", c);
+			}
+			c = lexer->get<char>();
+			store_pc(op_code);
+			if (pc + sizeof(char) > cp) {
+				P5_ERR("Program code overflow\n");
+			}
+			store_pc(c);
+			c = lexer->get<char>();
+			if (c != '\'') {
+				P5_ERR("expected \', got %c\n", c);
+			}
+			break;
+		}
+		case 7: {
+			lexer->skip_spaces();
+			auto c = lexer->get<char>();
+			if (c != '(') {
+				P5_ERR("expected (, got %c\n", c);
+			}
+			c = ' ';
+			std::set<P5::set_el_t> set;
+			while (c != ')') {
+				auto elem = lexer->get<P5::set_el_t>();
+				set.insert(elem);
+				c = lexer->get<char>();
+			}
+			if (pc > cp - P5::set_size) {
+				P5_ERR("Constant table overflow %d\n");
+			}
+			
+			cp -= P5::set_size-1;
+			int i = 0;
+			for (auto el: set) {
+				put_addr(store, cp+i, el);
+				i++;
+			}
+			while (i < P5::set_size) {
+				P5::set_el_t el = 0;
+				put_addr(store, cp+i, el);
+				i++;
+			}
+			
+			store_pc(op_code);
+			store_pc(cp);
+			
+			cp--;
+			break;
+		}
+		//chk
+		case 26:
+		case 95:
+		case 96:
+		case 97:
+		case 98:
+		case 99: {
+			auto lb = lexer->get<int>();
+			auto ub = lexer->get<int>();
+			P5::addr_t q;
+			if (op_code == 95) {
+				q = lb;
+			} else {
+				if (pc > cp - 2*sizeof(lb)) {
+					P5_ERR("Constant table overflow");
+				}
+				cp -= sizeof(lb)-1;
+				put_addr(store, cp, lb);
+				cp--;
+				cp -= sizeof(ub)-1;
+				put_addr(store, cp, ub);
+				q = cp;
+				cp--;
+			}
+			store_pc(op_code);
+			store_pc(q);
+			break;
+		}
+		case 56: {
+			auto l = lexer->get<int>();
+			lexer->skip_spaces();
+			auto c = lexer->get<char>();
+			expect_char('\'', c);
+			
+			std::string str(l, ' ');
+			c = lexer->get<char>();
+			int i = 0;
+			while (c != '\'') {
+				str[i] = c;
+				c = lexer->get<char>();
+			};
+			
+			if (pc > cp - l) {
+				P5_ERR("Constant table overflow");
+			}
+			cp -= l-1;
+			//TODO: include zero at the end?
+			put_addr_by_ptr(store, cp, (unsigned char*)str.c_str(), str.size());
+			P5::addr_t q = cp;
+			cp--;
+			store_pc(op_code);
+			store_pc(q);
+			break;
+		}
+		//ret
+		case 14:
+		case 128:
+		case 129:
+		case 130:
+		case 131:
+		case 132:
+		//equ,neq,geq,grt,leq,les
+		case 17:
+		case 137:
+		case 138:
+		case 139:
+		case 140:
+		case 141:
+		case 18:
+		case 143:
+		case 144:
+		case 145:
+		case 146:
+		case 147:
+		case 19:
+		case 149:
+		case 150:
+		case 151:
+		case 152:
+		case 153:
+		case 20:
+		case 155:
+		case 156:
+		case 157:
+		case 158:
+		case 159:
+		case 21:
+		case 161:
+		case 162:
+		case 163:
+		case 164:
+		case 165:
+		case 22:
+		case 167:
+		case 168:
+		case 169:
+		case 170:
+		case 171:
+		//ord
+		case 59:
+		case 133:
+		case 134:
+		case 135:
+		case 136:
+		//sto
+		case 6:
+		case 80:
+		case 81:
+		case 82:
+		case 83:
+		case 84:
+		//eof,adi,adr,sbi,sbr,sgs,flt,flo,trc,ngi,ngr,sqi,sqr,abi,abr,not,and,
+        //ior,dif,int,uni,inn,mod,odd,mpi,mpr,dvi,dvr,stp,chr,rnd,rgs,fbv, 
+        //fvb
+		case 27:
+		case 28:
+		case 29:
+		case 30:
+		case 31:
+		case 32:
+		case 33:
+		case 34:
+		case 35:
+		case 36:
+		case 37:
+		case 38:
+		case 39:
+		case 40:
+		case 41:
+		case 42:
+		case 43:
+		case 44:
+		case 45:
+		case 46:
+		case 47:
+		case 48:
+		case 49:
+		case 50:
+		case 51:
+		case 52:
+		case 53:
+		case 54:
+		case 58:
+		case 60:
+		case 62:
+		case 110:
+		case 111:
+		case 115:
+		case 116: {
+			store_pc(op_code);
+			break;
+		}
+		//ujc
+		case 61: {
+			store_pc(op_code);
+			P5::addr_t q = 0;
+			store_pc(q);
+			break;
+		}
 		default: {
 			P5_ERR("unsupported instruction: %d\n", op_code);
 		}
+	}
+}
+
+void Assembler::expect_char(char ec, char ac) {
+	if (ec != ac) {
+		P5_ERR("expected %c, got %c\n", ec, ac);
 	}
 }
 
@@ -345,6 +643,8 @@ void Assembler::init() {
 	ins_op("ldci", 123, false, P5::int_size)
 	ins_op("ldcr", 124, false, P5::int_size)
 	ins_op("ldcn", 125, false, 0)
+	ins_op("ldcb", 126, false, P5::bool_size)
+	ins_op("ldcc", 127, false, P5::char_size)
 	ins_op("reti", 128, false, 0)
 	ins_op("retr", 129, false, 0)
 	ins_op("retc", 130, false, 0)
@@ -392,6 +692,7 @@ void Assembler::init() {
 	ins_op("lesm", 172, false, P5::int_size)
 	ins_op("ente", 173, false, P5::int_size)
 	ins_op("mrkl", 174, false, P5::int_size)
+
 
 	sp_table_op("get", 0)
 	sp_table_op("put", 1)

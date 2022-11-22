@@ -10,9 +10,7 @@ template<typename T>
 void put_addr(P5::store_t &store, P5::addr_t addr, T v) {
 	auto *bytes = (unsigned char*)&v;
 	int size = sizeof(T);
-	for (int i = 0; i < size; i++) {
-		store[addr+i] = bytes[i];
-	}
+	put_addr_by_ptr(store, addr, bytes, size);
 }
 
 template<typename T>
@@ -24,6 +22,8 @@ T get_addr(P5::store_t &store, P5::addr_t addr) {
 	}
 	return *(T*)bytes;
 }
+
+void put_addr_by_ptr(P5::store_t &store, P5::addr_t addr, unsigned char *data, int size);
 
 //void put_addr(P5::store_t store, P5::addr_t addr, P5::addr_t val);
 //void put_addr(P5::store_t store, P5::addr_t addr, bool val);

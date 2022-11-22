@@ -34,17 +34,17 @@ private:
 	static std::unordered_map<std::string, P5::ins_t> instr;
 
 	//standard procedures
-	static std::unordered_map<std::string, int> sp_table;
+	static std::unordered_map<std::string, P5::ins_t> sp_table;
 
 	//label table
 	LabelTable *lb_table = nullptr;
 	Lexer *lexer = nullptr;
 
 	//program counter
-	int pc = 0;
+	P5::addr_t pc = 0;
 
 	//constants pointer
-	int cp = 0;
+	P5::addr_t cp = 0;
 
 	//storage
 	P5::store_t &store;
@@ -56,6 +56,7 @@ private:
 	void store_pc(T val);
 
 	P5::addr_t label_search();
+	void expect_char(char ec, char ac);
 };
 
 
