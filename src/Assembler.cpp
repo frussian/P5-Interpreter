@@ -47,7 +47,7 @@ void Assembler::generate() {
 		switch (c) {
 			//comment
 			case 'i': {
-				printf("");
+				printf("i");
 				lexer->get_line();
 				break;
 			}
@@ -96,6 +96,7 @@ void Assembler::assemble() {
 		P5_ERR("illegal instruction: %s\n", name.c_str());
 	}
 	auto op_code = ins_it->second;
+	printf("opcode: %d\n", op_code);
 	switch (op_code) {
 		//lod,str,lda,lip
 		case 0:
@@ -235,7 +236,7 @@ void Assembler::assemble() {
 			auto i = lexer->get<int>();
 			store_pc(op_code);
 			if (pc + sizeof(int) > cp) {
-				P5_ERR("Program code overflow %d\n");
+				P5_ERR("Program code overflow\n");
 			}
 			store_pc(i);
 			break;
@@ -244,7 +245,7 @@ void Assembler::assemble() {
 			auto r = lexer->get<double>();
 			store_pc(op_code);
 			if (pc + sizeof(double) > cp) {
-				P5_ERR("Constant table overflow %d\n");
+				P5_ERR("Constant table overflow\n");
 			}
 			cp -= sizeof(double)-1;
 			put_addr(store, cp, r);
@@ -266,7 +267,7 @@ void Assembler::assemble() {
 			int r = lexer->get<int>();
 			store_pc(op_code);
 			if (pc + sizeof(bool) > cp) {
-				P5_ERR("Program code overflow %d\n");
+				P5_ERR("Program code overflow\n");
 			}
 			store_pc(r == 1);
 			break;
@@ -303,7 +304,7 @@ void Assembler::assemble() {
 				c = lexer->get<char>();
 			}
 			if (pc > cp - P5::set_size) {
-				P5_ERR("Constant table overflow %d\n");
+				P5_ERR("Constant table overflow\n");
 			}
 			
 			cp -= P5::set_size-1;
@@ -352,20 +353,23 @@ void Assembler::assemble() {
 			store_pc(q);
 			break;
 		}
+		//lca
 		case 56: {
+			printf("lca\n");
 			auto l = lexer->get<int>();
 			lexer->skip_spaces();
 			auto c = lexer->get<char>();
 			expect_char('\'', c);
-			
+			printf("lca params: %d %c\n", l, c);
 			std::string str(l, ' ');
 			c = lexer->get<char>();
 			int i = 0;
 			while (c != '\'') {
 				str[i] = c;
 				c = lexer->get<char>();
+				i++;
 			};
-			
+			printf("lca string: %s\n", str.c_str());
 			if (pc > cp - l) {
 				P5_ERR("Constant table overflow");
 			}
