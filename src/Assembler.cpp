@@ -60,6 +60,7 @@ void Assembler::dump() {
 	printf("PROGCODE\n");
 	for (P5::addr_t i = 0; i < pc_top;) {
 		auto op_code = get_addr<P5::ins_t>(store, i);
+		auto start = i;
 		i += sizeof(P5::ins_t);
 		auto info = op_codes[op_code];
 		
@@ -75,9 +76,9 @@ void Assembler::dump() {
 			P5::addr_t q = 0;
 			get_addr_by_ptr(store, i, (unsigned char*)&q, info.q_len);
 			i += info.q_len;
-			printf("%d", q);
+			printf("%d ", q);
 		}
-		printf("\n");
+		printf("[%d bytes]\n", i-start);
 	}
 	printf(".\n.\n.\n");
 	printf("CONSTANTS\n");
