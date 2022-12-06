@@ -16,6 +16,21 @@ std::unordered_map<P5::ins_t, Assembler::OpCodeInfo> Assembler::op_codes;
 //"Pascal Implementation" Book
 //https://homepages.cwi.nl/~steven/pascal/book/pascalimplementation.html
 
+/*
+*    maxstr -> ---------------------                                           *
+*              | Constants         |                                           *
+*        cp -> ---------------------                                           *
+*              | Dynamic variables |                                           *
+*        np -> ---------------------                                           *
+*              | Free space        |                                           *
+*        sp -> ---------------------                                           *
+*              | Stack             |                                           *
+*              ---------------------                                           *
+*              | Code              |                                           *
+*              ---------------------                                           *
+*                                     
+*/
+
 Assembler::Assembler(P5::store_t &store, std::string filename):
 	store(store),
 	filename(std::move(filename)) {
@@ -34,6 +49,41 @@ void Assembler::load() {
 	cp = P5::max_store-1;
 	lexer->start();
 	generate();
+	pc_top = pc;
+	pc = 0;
+	dump();
+	generate();
+	dump();
+}
+
+void Assembler::dump() {
+	printf("PROGCODE\n");
+	for (P5::addr_t i = 0; i < pc_top;) {
+		auto op_code = get_addr<P5::ins_t>(store, i);
+		i += sizeof(P5::ins_t);
+		auto info = op_codes[op_code];
+		
+		// auto op_name = instr[op_code];
+		printf("%d ", op_code);
+		if (info.has_p) {
+			printf("%d ", get_addr<P5::lvl_t>(store, i));
+			i += sizeof(P5::lvl_t);
+		}
+		
+		
+		if (info.q_len != 0) {
+			P5::addr_t q = 0;
+			get_addr_by_ptr(store, i, (unsigned char*)&q, info.q_len);
+			i += info.q_len;
+			printf("%d", q);
+		}
+		printf("\n");
+	}
+	printf(".\n.\n.\n");
+	printf("CONSTANTS\n");
+	for (P5::addr_t i = cp+1; i < P5::max_store; i++) {
+		printf("%d\n", store[i]);
+	}
 }
 
 void Assembler::generate() {
@@ -228,7 +278,7 @@ void Assembler::assemble() {
 				P5_ERR("undefined standard procedure/function %s\n", sp_name.c_str());
 			}
 			store_pc(op_code);
-			store_pc(sp_it->second);
+			store_pc((P5::addr_t)sp_it->second);
 			break;
 		}
 		//ldc

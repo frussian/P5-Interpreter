@@ -6,7 +6,8 @@
 #define P5_INTERPRETER_ADDR_OPS_H
 #include "p5_common.h"
 
-void put_addr_by_ptr(P5::store_t &store, P5::addr_t addr, unsigned char *data, int size);
+void put_addr_by_ptr(P5::store_t &store, P5::addr_t addr, unsigned char *bytes, int size);
+void get_addr_by_ptr(P5::store_t &store, P5::addr_t addr, unsigned char *bytes, int size);
 
 template<typename T>
 void put_addr(P5::store_t &store, P5::addr_t addr, T v) {

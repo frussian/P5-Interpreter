@@ -14,6 +14,7 @@ public:
 	explicit Assembler(P5::store_t &store, std::string filename);
 	~Assembler();
 	void load();
+	void dump();
 
 	//init tables
 	static void init();
@@ -42,6 +43,9 @@ private:
 
 	//program counter
 	P5::addr_t pc = 0;
+
+	//program top counter
+	P5::addr_t pc_top = 0;
 
 	//constants pointer
 	P5::addr_t cp = 0;
