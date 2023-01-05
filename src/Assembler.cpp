@@ -293,12 +293,12 @@ void Assembler::assemble() {
 			break;
 		}
 		case 124: {
-			auto r = lexer->get<double>();
+			auto r = lexer->get<P5::real_t>();
 			store_pc(op_code);
-			if (pc + sizeof(double) > cp) {
+			if (pc + sizeof(P5::real_t) > cp) {
 				P5_ERR("Constant table overflow\n");
 			}
-			cp -= sizeof(double)-1;
+			cp -= sizeof(P5::real_t)-1;
 			put_addr(store, cp, r);
 			store_pc(cp);
 			cp--;
@@ -320,7 +320,8 @@ void Assembler::assemble() {
 			if (pc + sizeof(bool) > cp) {
 				P5_ERR("Program code overflow\n");
 			}
-			store_pc(r == 1);
+			P5::bool_t val = (r == 1);
+			store_pc(val);
 			break;
 		}
 		case 127: {
@@ -357,13 +358,14 @@ void Assembler::assemble() {
 			if (pc > cp - P5::set_size) {
 				P5_ERR("Constant table overflow\n");
 			}
-			
+			//TODO: store in separate map with id key for set
 			cp -= P5::set_size-1;
 			int i = 0;
 			for (auto el: set) {
 				put_addr(store, cp+i, el);
 				i++;
 			}
+			//TODO: filling with zeros?
 			while (i < P5::set_size) {
 				P5::set_el_t el = 0;
 				put_addr(store, cp+i, el);
@@ -784,5 +786,4 @@ void Assembler::init() {
 	sp_table_op("rwb", 34)
 	sp_table_op("gbf", 35)
 	sp_table_op("pbf", 36)
-
 }

@@ -60,7 +60,7 @@ private:
 	void store_pc(T val);
 
 	P5::addr_t label_search();
-	void expect_char(char ec, char ac);
+	static void expect_char(char ec, char ac);
 };
 
 

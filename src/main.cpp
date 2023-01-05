@@ -15,4 +15,5 @@ int main(int argc, char *argv[]) {
 	store.resize(P5::max_store);
 	Assembler assembler(store, argv[1]);
 	assembler.load();
+
 }
