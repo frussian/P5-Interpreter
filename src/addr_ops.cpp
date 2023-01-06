@@ -3,13 +3,13 @@
 //
 #include "addr_ops.h"
 
-void put_addr_by_ptr(P5::store_t &store, P5::addr_t addr, unsigned char *bytes, int size) {
+void put_val_to_addr_by_ptr(P5::store_t &store, P5::addr_t addr, unsigned char *bytes, int size) {
 	for (int i = 0; i < size; i++) {
 		store[addr+i] = bytes[i];
 	}
 }
 
-void get_addr_by_ptr(P5::store_t &store, P5::addr_t addr, unsigned char *bytes, int size) {
+void get_val_at_addr_by_ptr(P5::store_t &store, P5::addr_t addr, unsigned char *bytes, int size) {
 	for (int i = 0; i < size; i++) {
 		bytes[i] = store[addr+i];
 	}

@@ -8,6 +8,7 @@
 
 class LabelTable;
 class Lexer;
+class SetStorage;
 
 class Assembler {
 public:
@@ -39,7 +40,12 @@ private:
 
 	//label table
 	LabelTable *lb_table = nullptr;
+
+	//lexer
 	Lexer *lexer = nullptr;
+
+	//set storage
+	SetStorage *setStorage = nullptr;
 
 	//program counter
 	P5::addr_t pc = 0;

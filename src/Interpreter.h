@@ -5,18 +5,21 @@
 #ifndef P5_INTERPRETER_INTERPRETER_H
 #define P5_INTERPRETER_INTERPRETER_H
 
-
 #include "p5_common.h"
+
+class SetStorage;
 
 class Interpreter {
 public:
-	Interpreter(P5::store_t &store, P5::addr_t pc_top, P5::addr_t cp):
-		store(store), pc_top(pc_top), mp(pc_top), sp(pc_top), ep(5), np(cp){};
+	Interpreter(P5::store_t &store, SetStorage *setStorage, P5::addr_t pc_top, P5::addr_t cp):
+		store(store), setStorage(setStorage), pc_top(pc_top), mp(pc_top), sp(pc_top), ep(5), np(cp){};
 
 	[[noreturn]] void run();
 
 
 private:
+	SetStorage *setStorage;
+
 	//program top counter
 	P5::addr_t pc_top = 0;
 
@@ -43,6 +46,7 @@ private:
 	static int ms_stack_bottom_off;
 	static int ms_ep_cur_off;
 	static int ms_ret_addr_off;
+	static P5::addr_t nil_val;
 
 	//storage
 	P5::store_t &store;
@@ -53,16 +57,28 @@ private:
 	void push_stack(T val);
 
 	template<typename T>
-	void pop_stack();
+	T pop_stack();
 
 	template<typename T>
-	void lod_instr();
+	void lod_instr(bool is_set = false);
 
 	template<typename T>
-	void ldo_instr();
+	void ldo_instr(bool is_set = false);
 
 	template<typename T>
 	void str_instr();
+
+	template<typename T>
+	void sro_instr();
+
+	template<typename T>
+	void sto_instr();
+
+	template<typename T>
+	void ldc_instr(int type = 127);
+
+	template<typename T>
+	void ind_instr(bool is_set = false);
 
 	template<typename T>
 	T get_pc();

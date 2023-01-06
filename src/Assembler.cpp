@@ -1,5 +1,5 @@
 #include <iostream>
-#include <set>
+#include <unordered_set>
 
 #include "p5_common.h"
 #include "p5_errors.h"
@@ -7,6 +7,7 @@
 #include "Assembler.h"
 #include "LabelTable.h"
 #include "Lexer.h"
+#include "SetStorage.h"
 #include "addr_ops.h"
 
 std::unordered_map<std::string, P5::ins_t> Assembler::instr;
@@ -36,6 +37,7 @@ Assembler::Assembler(P5::store_t &store, std::string filename):
 	filename(std::move(filename)) {
 	lb_table = new LabelTable(store);
 	lexer = new Lexer(this->filename);
+	setStorage = new SetStorage;
 }
 
 Assembler::~Assembler() {
@@ -59,7 +61,7 @@ void Assembler::load() {
 void Assembler::dump() {
 	printf("PROGCODE\n");
 	for (P5::addr_t i = 0; i < pc_top;) {
-		auto op_code = get_addr<P5::ins_t>(store, i);
+		auto op_code = get_val_at_addr<P5::ins_t>(store, i);
 		auto start = i;
 		i += sizeof(P5::ins_t);
 		auto info = op_codes[op_code];
@@ -67,14 +69,14 @@ void Assembler::dump() {
 		// auto op_name = instr[op_code];
 		printf("%d ", op_code);
 		if (info.has_p) {
-			printf("%d ", get_addr<P5::lvl_t>(store, i));
+			printf("%d ", get_val_at_addr<P5::lvl_t>(store, i));
 			i += sizeof(P5::lvl_t);
 		}
 		
 		
 		if (info.q_len != 0) {
 			P5::addr_t q = 0;
-			get_addr_by_ptr(store, i, (unsigned char*)&q, info.q_len);
+			get_val_at_addr_by_ptr(store, i, (unsigned char *) &q, info.q_len);
 			i += info.q_len;
 			printf("%d ", q);
 		}
@@ -299,7 +301,7 @@ void Assembler::assemble() {
 				P5_ERR("Constant table overflow\n");
 			}
 			cp -= sizeof(P5::real_t)-1;
-			put_addr(store, cp, r);
+			put_val_to_addr(store, cp, r);
 			store_pc(cp);
 			cp--;
 			break;
@@ -349,33 +351,16 @@ void Assembler::assemble() {
 				P5_ERR("expected (, got %c\n", c);
 			}
 			c = ' ';
-			std::set<P5::set_el_t> set;
+			std::unordered_set<P5::set_el_t> set;
 			while (c != ')') {
 				auto elem = lexer->get<P5::set_el_t>();
 				set.insert(elem);
 				c = lexer->get<char>();
 			}
-			if (pc > cp - P5::set_size) {
-				P5_ERR("Constant table overflow\n");
-			}
-			//TODO: store in separate map with id key for set
-			cp -= P5::set_size-1;
-			int i = 0;
-			for (auto el: set) {
-				put_addr(store, cp+i, el);
-				i++;
-			}
-			//TODO: filling with zeros?
-			while (i < P5::set_size) {
-				P5::set_el_t el = 0;
-				put_addr(store, cp+i, el);
-				i++;
-			}
-			
+
+			int set_id = setStorage->create_set(std::move(set));
 			store_pc(op_code);
-			store_pc(cp);
-			
-			cp--;
+			store_pc(set_id);
 			break;
 		}
 		//chk
@@ -395,10 +380,10 @@ void Assembler::assemble() {
 					P5_ERR("Constant table overflow");
 				}
 				cp -= sizeof(lb)-1;
-				put_addr(store, cp, lb);
+				put_val_to_addr(store, cp, lb);
 				cp--;
 				cp -= sizeof(ub)-1;
-				put_addr(store, cp, ub);
+				put_val_to_addr(store, cp, ub);
 				q = cp;
 				cp--;
 			}
@@ -428,7 +413,7 @@ void Assembler::assemble() {
 			}
 			cp -= l-1;
 			//TODO: include zero at the end?
-			put_addr_by_ptr(store, cp, (unsigned char*)str.c_str(), str.size());
+			put_val_to_addr_by_ptr(store, cp, (unsigned char *) str.c_str(), str.size());
 			P5::addr_t q = cp;
 			cp--;
 			store_pc(op_code);
@@ -557,7 +542,7 @@ void Assembler::store_pc(T val) {
 	if (pc > cp-sizeof(T)) {
 		P5_ERR("Program code overflow\n");
 	}
-	put_addr(store, pc, val);
+	put_val_to_addr(store, pc, val);
 	pc += sizeof(T);
 }
 

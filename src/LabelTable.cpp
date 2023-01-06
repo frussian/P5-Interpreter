@@ -29,8 +29,8 @@ int LabelTable::update(int lbl, P5::addr_t lbl_val) {
 		while (curr != -1) {
 			unsigned char opcode = store[curr];
 			bool has_p = Assembler::op_codes[opcode].has_p;
-			auto q = get_addr<P5::addr_t>(store, curr+1+(int)has_p);
-			put_addr(store, curr+1+has_p, lbl_val);
+			auto q = get_val_at_addr<P5::addr_t>(store, curr + 1 + (int) has_p);
+			put_val_to_addr(store, curr + 1 + has_p, lbl_val);
 			curr = q;
 		}
 	}
