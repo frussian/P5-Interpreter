@@ -12,10 +12,12 @@ namespace P5 {
 	typedef unsigned char ins_t; //opcode
 	typedef unsigned char lvl_t; //p
 	typedef unsigned char set_el_t;
+	typedef std::vector<set_el_t> set;
 	typedef std::vector<unsigned char> store_t;
 	typedef double real_t;
 	typedef unsigned char bool_t;
 	typedef char char_t;
+	typedef int int_t;
 
 	static int int_size = 4;
 	static int char_size = 1;

@@ -11,12 +11,15 @@
 class Interpreter {
 public:
 	Interpreter(P5::store_t &store, P5::addr_t pc_top, P5::addr_t cp):
-		store(store), mp(pc_top), sp(pc_top), ep(5), np(cp){};
+		store(store), pc_top(pc_top), mp(pc_top), sp(pc_top), ep(5), np(cp){};
 
 	[[noreturn]] void run();
 
 
 private:
+	//program top counter
+	P5::addr_t pc_top = 0;
+
 	//program counter
 	P5::addr_t pc = 0;
 
@@ -50,7 +53,16 @@ private:
 	void push_stack(T val);
 
 	template<typename T>
+	void pop_stack();
+
+	template<typename T>
 	void lod_instr();
+
+	template<typename T>
+	void ldo_instr();
+
+	template<typename T>
+	void str_instr();
 
 	template<typename T>
 	T get_pc();
