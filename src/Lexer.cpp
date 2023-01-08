@@ -42,6 +42,13 @@ char Lexer::get<char>() {
 	return val;
 }
 
+template<>
+unsigned char Lexer::get<unsigned char>() {
+	int val;
+	strm >> val;
+	return val;
+}
+
 char Lexer::peek() {
 	return strm.peek();
 }
