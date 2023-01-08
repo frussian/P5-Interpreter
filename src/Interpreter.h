@@ -12,9 +12,9 @@ class SetStorage;
 class Interpreter {
 public:
 	Interpreter(P5::store_t &store, SetStorage *setStorage, P5::addr_t pc_top, P5::addr_t cp):
-		store(store), setStorage(setStorage), pc_top(pc_top), mp(pc_top), sp(pc_top), ep(5), np(cp){};
+		store(store), setStorage(setStorage), pc_top(pc_top), mp(pc_top), sp(pc_top), ep(5), cp(cp), np(cp){};
 
-	[[noreturn]] void run();
+	void run();
 
 
 private:
@@ -22,6 +22,9 @@ private:
 
 	//program top counter
 	P5::addr_t pc_top = 0;
+
+	//constant storage pointer
+	P5::addr_t cp = 0;
 
 	//program counter
 	P5::addr_t pc = 0;
@@ -47,9 +50,12 @@ private:
 	static int ms_ep_cur_off;
 	static int ms_ret_addr_off;
 	static P5::addr_t nil_val;
+	static int mark_stack_size;
 
 	//storage
 	P5::store_t &store;
+
+	void call_sp(P5::addr_t sp_code);
 
 	P5::addr_t get_base_addr(P5::ins_t p);
 
@@ -75,10 +81,21 @@ private:
 	void sto_instr();
 
 	template<typename T>
-	void ldc_instr(int type = 127);
+	void ldc_instr(int type);
 
 	template<typename T>
 	void ind_instr(bool is_set = false);
+
+	template<typename T>
+	void inc_instr(bool is_set = false);
+
+	void ret_instr(int mp_off);
+
+	template<typename T>
+	void chk_instr();
+
+	template<typename T>
+	void write();
 
 	template<typename T>
 	T get_pc();

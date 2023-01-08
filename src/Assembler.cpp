@@ -37,25 +37,27 @@ Assembler::Assembler(P5::store_t &store, std::string filename):
 	filename(std::move(filename)) {
 	lb_table = new LabelTable(store);
 	lexer = new Lexer(this->filename);
-	setStorage = new SetStorage;
+	set_storage = new SetStorage;
 }
 
 Assembler::~Assembler() {
 	delete lb_table;
 	delete lexer;
+	delete set_storage;
 }
 
 void Assembler::load() {
 	std::cout << "loading " << filename << std::endl;
-	pc = 0;
+	pc = 9;
 	cp = P5::max_store-1;
 	lexer->start();
 	generate();
 	pc_top = pc;
 	pc = 0;
-	dump();
+//	dump();
 	generate();
 	dump();
+	lb_table->dump();
 }
 
 void Assembler::dump() {
@@ -67,7 +69,7 @@ void Assembler::dump() {
 		auto info = op_codes[op_code];
 		
 		// auto op_name = instr[op_code];
-		printf("%d ", op_code);
+		printf("[%d] %d %s ", start, op_code, op_codes[op_code].name.c_str());
 		if (info.has_p) {
 			printf("%d ", get_val_at_addr<P5::lvl_t>(store, i));
 			i += sizeof(P5::lvl_t);
@@ -95,7 +97,7 @@ void Assembler::generate() {
 		if (lexer->is_eof()) {
 			P5_ERR("unexpected end of file\n");
 		}
-		printf("assembling line %d\n", lexer->line_num());
+//		printf("assembling line %d\n", lexer->line_num());
 		char c = lexer->get<char>();
 		switch (c) {
 			//comment
@@ -143,13 +145,13 @@ void Assembler::generate() {
 void Assembler::assemble() {
 	std::string name = lexer->get<std::string>();
 //	std::string name = "tes";
-	printf("instr %s\n", name.c_str());
+//	printf("instr %s\n", name.c_str());
 	auto ins_it = instr.find(name);
 	if (ins_it == instr.end()) {
 		P5_ERR("illegal instruction: %s\n", name.c_str());
 	}
 	auto op_code = ins_it->second;
-	printf("opcode: %d\n", op_code);
+//	printf("opcode: %d\n", op_code);
 	switch (op_code) {
 		//lod,str,lda,lip
 		case 0:
@@ -322,7 +324,7 @@ void Assembler::assemble() {
 			if (pc + sizeof(bool) > cp) {
 				P5_ERR("Program code overflow\n");
 			}
-			P5::bool_t val = (r == 1);
+			bool val = (r == 1);
 			store_pc(val);
 			break;
 		}
@@ -338,6 +340,7 @@ void Assembler::assemble() {
 				P5_ERR("Program code overflow\n");
 			}
 			store_pc(c);
+//			printf("loaded %c %d", c, c);
 			c = lexer->get<char>();
 			if (c != '\'') {
 				P5_ERR("expected \', got %c\n", c);
@@ -358,7 +361,7 @@ void Assembler::assemble() {
 				c = lexer->get<char>();
 			}
 
-			int set_id = setStorage->create_set(std::move(set));
+			int set_id = set_storage->create_set(std::move(set));
 			store_pc(op_code);
 			store_pc(set_id);
 			break;
@@ -370,8 +373,8 @@ void Assembler::assemble() {
 		case 97:
 		case 98:
 		case 99: {
-			auto lb = lexer->get<int>();
-			auto ub = lexer->get<int>();
+			auto lb = lexer->get<P5::int_t>();
+			auto ub = lexer->get<P5::int_t>();
 			P5::addr_t q;
 			if (op_code == 95) {
 				q = lb;
@@ -379,11 +382,11 @@ void Assembler::assemble() {
 				if (pc > cp - 2*sizeof(lb)) {
 					P5_ERR("Constant table overflow");
 				}
-				cp -= sizeof(lb)-1;
-				put_val_to_addr(store, cp, lb);
-				cp--;
 				cp -= sizeof(ub)-1;
 				put_val_to_addr(store, cp, ub);
+				cp--;
+				cp -= sizeof(lb)-1;
+				put_val_to_addr(store, cp, lb);
 				q = cp;
 				cp--;
 			}
@@ -558,7 +561,7 @@ P5::addr_t Assembler::label_search() {
 	return q;
 }
 
-#define ins_op(name, opcode, has_p_p, q_len_p) instr[name] = opcode; op_codes[opcode] = {.has_p = (has_p_p), .q_len = (q_len_p)};
+#define ins_op(name_p, opcode, has_p_p, q_len_p) instr[name_p] = opcode; op_codes[opcode] = {.name = (name_p), .has_p = (has_p_p), .q_len = (q_len_p)};
 #define sp_table_op(name, opcode) sp_table[name] = opcode;
 
 void Assembler::init() {
@@ -771,4 +774,16 @@ void Assembler::init() {
 	sp_table_op("rwb", 34)
 	sp_table_op("gbf", 35)
 	sp_table_op("pbf", 36)
+}
+
+SetStorage *Assembler::get_set_storage() {
+	return set_storage;
+}
+
+P5::addr_t Assembler::get_pc_top() {
+	return pc_top;
+}
+
+P5::addr_t Assembler::get_cp() {
+	return cp;
 }

@@ -15,10 +15,11 @@ namespace P5 {
 	typedef int set_t;
 	typedef std::vector<unsigned char> store_t;
 	typedef double real_t;
-	typedef unsigned char bool_t;
-	typedef char char_t;
+	typedef bool bool_t;
+	typedef char char_t;//TODO: maybe unsigned char
 	typedef int int_t;
 
+	static int addr_size = 4;
 	static int int_size = 4;
 	static int char_size = 1;
 	static int bool_size = 1;

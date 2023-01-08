@@ -30,7 +30,7 @@ int LabelTable::update(int lbl, P5::addr_t lbl_val) {
 			unsigned char opcode = store[curr];
 			bool has_p = Assembler::op_codes[opcode].has_p;
 			auto q = get_val_at_addr<P5::addr_t>(store, curr + 1 + (int) has_p);
-			put_val_to_addr(store, curr + 1 + has_p, lbl_val);
+			put_val_to_addr(store, curr + 1 + (int)has_p, lbl_val);
 			curr = q;
 		}
 	}
@@ -49,4 +49,11 @@ LabelTable::LabelInfo *LabelTable::find_or_insert_lbl_info(int lbl) {
 				.ptr = -1}}).first;
 	}
 	return &info_it->second;
+}
+
+void LabelTable::dump() {
+	printf("label table:\n");
+	for (const auto p: lb_storage) {
+		printf("l %d - pc %d (defined %d)\n", p.first, p.second.ptr, p.second.defined);
+	}
 }

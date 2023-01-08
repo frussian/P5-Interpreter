@@ -14,7 +14,7 @@ public:
 	explicit LabelTable(P5::store_t &store): store(store){};
 	P5::addr_t lookup(int lbl, int pc);
 	int update(int lbl, P5::addr_t lbl_val);
-
+	void dump();
 private:
 	typedef struct LabelInfo {
 		bool defined;

@@ -16,11 +16,15 @@ public:
 	~Assembler();
 	void load();
 	void dump();
+	SetStorage *get_set_storage();
+	P5::addr_t get_pc_top();
+	P5::addr_t get_cp();
 
 	//init tables
 	static void init();
 
 	struct OpCodeInfo {
+		std::string name;
 		bool has_p;
 		int q_len;
 	};
@@ -45,7 +49,7 @@ private:
 	Lexer *lexer = nullptr;
 
 	//set storage
-	SetStorage *setStorage = nullptr;
+	SetStorage *set_storage = nullptr;
 
 	//program counter
 	P5::addr_t pc = 0;
