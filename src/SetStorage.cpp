@@ -5,7 +5,7 @@
 #include "SetStorage.h"
 #include "p5_errors.h"
 
-int SetStorage::create_set(std::unordered_set<P5::set_el_t> &&set) {
+P5::set_t SetStorage::create_set(std::unordered_set<P5::set_el_t> &&set) {
 	struct set_info_t info;
 	info.count = 0;
 	info.set = std::make_shared<std::unordered_set<P5::set_el_t>>(set);

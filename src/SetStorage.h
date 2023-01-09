@@ -26,18 +26,18 @@ public:
 //		}
 //	};
 
-	int create_set(std::unordered_set<P5::set_el_t> &&set);
+	P5::set_t create_set(std::unordered_set<P5::set_el_t> &&set);
 	std::shared_ptr<std::unordered_set<P5::set_el_t>> get_set(int id);
 	void notify_push(int id);
 	void notify_pop(int id);
 
 private:
-	int next_id = 0;
+	P5::set_t next_id = 0;
 	struct set_info_t {
 		std::shared_ptr<std::unordered_set<P5::set_el_t>> set;
 		int count;
 	};
-	std::unordered_map<int, struct set_info_t> storage;
+	std::unordered_map<P5::set_t, struct set_info_t> storage;
 };
 
 

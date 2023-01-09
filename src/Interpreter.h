@@ -5,6 +5,9 @@
 #ifndef P5_INTERPRETER_INTERPRETER_H
 #define P5_INTERPRETER_INTERPRETER_H
 
+#include <unordered_set>
+#include <memory>
+
 #include "p5_common.h"
 
 class SetStorage;
@@ -12,13 +15,13 @@ class SetStorage;
 class Interpreter {
 public:
 	Interpreter(P5::store_t &store, SetStorage *setStorage, P5::addr_t pc_top, P5::addr_t cp):
-		store(store), setStorage(setStorage), pc_top(pc_top), mp(pc_top), sp(pc_top), ep(5), cp(cp), np(cp){};
+			store(store), set_storage(setStorage), pc_top(pc_top), mp(pc_top), sp(pc_top), ep(5), cp(cp), np(cp){};
 
 	void run();
 
 
 private:
-	SetStorage *setStorage;
+	SetStorage *set_storage;
 
 	//program top counter
 	P5::addr_t pc_top = 0;
@@ -65,6 +68,10 @@ private:
 	template<typename T>
 	T pop_stack();
 
+	std::ostream &get_out_strm(P5::addr_t file_addr);
+	std::istream &get_in_strm(P5::addr_t file_addr);
+	static bool is_eof(std::istream& strm);
+
 	template<typename T>
 	void lod_instr(bool is_set = false);
 
@@ -95,7 +102,19 @@ private:
 	void chk_instr();
 
 	template<typename T>
+	void bin_op_instr(int sign);
+	static P5::bool_t check_is_subset(std::shared_ptr<std::unordered_set<P5::set_el_t>> set, std::shared_ptr<std::unordered_set<P5::set_el_t>> subset);
+	void bin_op_set_instr(int sign);
+	void bin_op_m_instr(int sign);
+
+	template<typename T>
+	void unary_op_instr(int op);
+
+	template<typename T>
 	void write();
+
+	template<typename T>
+	void read();
 
 	template<typename T>
 	T get_pc();

@@ -6,19 +6,23 @@ i
 :3
 :4
 :5
+:6
+:7
+:8
+:9
 l   3
  ents       l   4
  ente       l   5
  lodc  0         32
  chkc  0        255
  strc  0          0
-:6
+:10
  retc
 l   4=         36
 l   5=         33
-:7
-:8
-:9
+:11
+:12
+:13
 l   6
  ents       l   7
 i   10
@@ -34,7 +38,7 @@ i   10
  csp         wln
 i   20
  dmp           4
-:10
+:14
  ldcb           1
  lda   0      34
  swp           4
@@ -42,7 +46,7 @@ i   20
  csp         wrb
  csp         wln
  dmp           4
-:11
+:15
  ldci           1
  lda   0      34
 i   30
@@ -51,7 +55,7 @@ i   30
  csp         wri
  csp         wln
  dmp           4
-:12
+:16
  ldcr  1.523
  lda   0      34
  swp           8
@@ -60,10 +64,102 @@ i   30
 i   40
  csp         wln
  dmp           4
-:13
+:17
+ lca   12 'hello world!'
+ lda   0      34
+ swp           4
+ ldci           4
+ ldci          12
+ csp         wrs
+ csp         wln
+ dmp           4
+:18
+i   50
+ lao          32
+ lao          40
+ csp         rdc
+ dmp           4
+:19
+ lca   10 'read char'
+ lda   0      34
+ swp           4
+ ldci          10
+ ldci          10
+ csp         wrs
+i   60
+ dmp           4
+:20
+ ldoc         40
+ lda   0      34
+ swp           4
+ ldci           1
+ csp         wrc
+ csp         wln
+ dmp           4
+:21
+:22
+ ldcr  3.141828
+ sror         44
+:23
+i   70
+ ldor         44
+ lda   0      34
+ swp           8
+ ldci           0
+ ldci           3
+ csp         wrf
+ csp         wln
+ dmp           4
+:24
+:25
+ lca    8 'is eoln'
+ lda   0      34
+i   80
+ swp           4
+ ldci           8
+ ldci           8
+ csp         wrs
+ dmp           4
+:26
+ lao          32
+ csp         eln
+ lda   0      34
+ swp           4
+ ldci           5
+i   90
+ csp         wrb
+ csp         wln
+ dmp           4
+:27
+:28
+ lao          32
+ fbv
+ inca          1
+ indc          0
+ chkc  0        255
+ sroc         40
+:29
+ lca   22 'got char with ^ syntax'
+i  100
+ lda   0      34
+ swp           4
+ ldci          22
+ ldci          22
+ csp         wrs
+ dmp           4
+:30
+ ldoc         40
+ lda   0      34
+ swp           4
+ ldci           1
+i  110
+ csp         wrc
+ csp         wln
+ dmp           4
+:31
  retp
-l   7=         40
-l   8=         35
+l   7=         52
+l   8=         36
 q
 i    0
  mst           0

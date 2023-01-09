@@ -3,6 +3,8 @@
 //
 
 #include <iomanip>
+#include <cmath>
+#include <limits>
 
 #include "Interpreter.h"
 #include "Assembler.h"
@@ -10,6 +12,8 @@
 #include "addr_ops.h"
 #include "p5_errors.h"
 
+#pragma clang diagnostic push
+#pragma ide diagnostic ignored "EndlessLoop"
 int Interpreter::ms_fret_off = 0;
 int Interpreter::ms_st_link_off = 8;
 int Interpreter::ms_dyn_link_off = 12;
@@ -21,7 +25,14 @@ P5::addr_t Interpreter::nil_val = 1;
 int Interpreter::mark_stack_size = 32;
 
 template<>
+void Interpreter::push_stack(P5::bool_t val);
+
+template<>
 P5::char_t Interpreter::pop_stack();
+
+template<>
+void Interpreter::write<P5::bool_t>();
+
 /*#if (with_set_push) == 1                      \
 	case offset+2: (func)<P5::set_t>(true); break;       \
 	#elif\
@@ -43,6 +54,68 @@ P5::char_t Interpreter::pop_stack();
 	case offset+2: func<P5::set_t>(); break; \
     COMMON_CASES(start, offset, func)
 
+#define BIN_OP_COMP_CASES(start, offset, sign) \
+	\
+	case start: {\
+	bin_op_instr<P5::addr_t>(sign);\
+	break;\
+	}\
+	case offset+2: {\
+	bin_op_instr<P5::bool_t>(sign);\
+	break;\
+	}\
+	case offset+4: {\
+	bin_op_instr<P5::char_t>(sign);\
+	break;\
+	}\
+	case offset: {\
+	bin_op_instr<P5::int_t>(sign);\
+	break;\
+	}\
+	case offset+1: {\
+	bin_op_instr<P5::real_t>(sign);\
+	break;\
+	}\
+	case offset+3: {\
+	bin_op_set_instr(sign);\
+	break;\
+	}\
+	case offset+5: {\
+	bin_op_m_instr(sign);\
+	break;\
+	}
+
+#define BIN_OP_CASES(start, sign) \
+	case start: bin_op_instr<P5::int_t>(sign); break; \
+	case start+1: bin_op_instr<P5::real_t>(sign); break;
+
+#define UNARY_OP_CASES(start, sign) \
+	case start: unary_op_instr<P5::int_t>(sign); break; \
+	case start+1: unary_op_instr<P5::real_t>(sign); break;
+
+#define EQ_SIGN 1
+#define NEQ_SIGN 2
+#define GE_SIGN 3
+#define GT_SIGN 4
+#define LE_SIGN 5
+#define LT_SIGN 6
+
+#define ADD_OP 7
+#define SUB_OP 8
+#define MUL_OP 9
+#define DIV_OP 10
+#define MOD_OP 11
+
+#define NEG_OP 12
+#define SQR_OP 13
+#define ABS_OP 14
+
+#define NOT_OP 15
+#define AND_OP 16
+#define OR_OP 17
+
+#pragma clang diagnostic push
+#pragma ide diagnostic ignored "UnreachableCode"
 void Interpreter::run() {
 	printf("running program\n");
 	pc = 0;
@@ -171,6 +244,44 @@ void Interpreter::run() {
 				break;
 			}
 
+			//ixa
+			case 16: {
+				auto q = get_pc<P5::addr_t>();
+				auto i = pop_stack<P5::int_t>();
+				auto addr = pop_stack<P5::addr_t>();
+				push_stack(q*i + addr);
+				break;
+			}
+
+			BIN_OP_COMP_CASES(17, 137, EQ_SIGN)
+			BIN_OP_COMP_CASES(18, 143, NEQ_SIGN)
+			BIN_OP_COMP_CASES(19, 149, GE_SIGN)
+			BIN_OP_COMP_CASES(20, 155, GT_SIGN)
+			BIN_OP_COMP_CASES(21, 161, LE_SIGN)
+			BIN_OP_COMP_CASES(22, 167, LT_SIGN)
+
+			//ujp
+			case 23: {
+				pc = get_pc<P5::addr_t>();
+				break;
+			}
+			//fjp
+			case 24: {
+				auto q = get_pc<P5::addr_t>();
+				auto i = pop_stack<P5::int_t>();
+				if (i == 0) {
+					pc = q;
+				}
+				break;
+			}
+			//xjp
+			case 25: {
+				auto q = get_pc<P5::addr_t>();
+				auto i = pop_stack<P5::int_t>();
+				pc = i * 5 + q;
+				break;
+			}
+
 			//chka
 			case 95: {
 				auto q = get_pc<P5::addr_t>();
@@ -196,6 +307,75 @@ void Interpreter::run() {
 			case 99: chk_instr<P5::char_t>(); break;
 			//chki
 			case 26: chk_instr<P5::int_t>(); break;
+			
+			//eof
+			case 27: {
+				auto file_addr = get_pc<P5::addr_t>();
+				auto &in_strm = get_in_strm(file_addr);
+				push_stack((P5::bool_t) is_eof(in_strm));
+				break;
+			}
+
+			//add
+			BIN_OP_CASES(28, ADD_OP)
+			//sub
+			BIN_OP_CASES(30, SUB_OP)
+			//sgs
+			case 32: {
+				auto i = pop_stack<P5::int_t>();
+				std::unordered_set<P5::set_el_t> set;
+				//TODO: check set element type
+				set.insert(i);
+				auto set_id = set_storage->create_set(std::move(set));
+				push_stack(set_id);
+				set_storage->notify_push(set_id);
+				break;
+			}
+			//flt
+			case 33: {
+				auto i = pop_stack<P5::int_t>();
+				push_stack((P5::real_t)i);
+				break;
+			}
+			//flo
+			case 34: {
+				auto r = pop_stack<P5::real_t>();
+				auto i = pop_stack<P5::int_t>();
+				push_stack((P5::real_t)i);
+				push_stack(r);
+				break;
+			}
+			//trc
+			case 35: {
+				auto r = pop_stack<P5::real_t>();
+				push_stack((P5::int_t)r);
+				break;
+			}
+			//ng
+			UNARY_OP_CASES(36, NEG_OP);
+			//ng
+			UNARY_OP_CASES(38, SQR_OP);
+			//ab
+			UNARY_OP_CASES(40, ABS_OP);
+
+			case 42: {
+				unary_op_instr<P5::bool_t>(NOT_OP);
+				break;
+			}
+			case 43: {
+				bin_op_instr<P5::bool_t>(AND_OP);
+				break;
+			}
+			case 44: {
+				bin_op_instr<P5::bool_t>(OR_OP);
+				break;
+			}
+
+
+			//mp
+			BIN_OP_CASES(51, MUL_OP)
+			//div
+			BIN_OP_CASES(53, DIV_OP)
 
 			//dmp
 			case 117: {
@@ -218,27 +398,80 @@ void Interpreter::run() {
 				break;
 			}
 
+			//lca
+			case 56: {
+				auto q = get_pc<P5::addr_t>();
+				push_stack(q);
+				break;
+			}
+			case 58: interpreting = false; break;
+
 			//fbv
 			case 111: {
-				//TODO: implement
+//				printf("fbv\n");
+				auto file_addr = pop_stack<P5::addr_t>();
+				push_stack(file_addr);
+				auto &in_strm = get_in_strm(file_addr);
+				auto c = in_strm.peek();
+				put_val_to_addr(store, file_addr+1, (char)c);
 				break;
 			}
 
-			case 58: interpreting = false; break;
 			default: {
 				P5_ERR("unexpected op code %d", op_code);
 			}
 		}
 	}
 }
+#pragma clang diagnostic pop
 
 void Interpreter::call_sp(P5::addr_t sp_code) {
 	switch (sp_code) {
+		//get
+		case 0: {
+			auto addr = pop_stack<P5::addr_t>();
+			auto &in_strm = get_in_strm(addr);
+			if (is_eof(in_strm)) {
+				P5_ERR("get on end of file")
+			}
+			in_strm.seekg(1, std::ios::cur);
+			break;
+		}
+		//put
+		case 1: {
+			printf("put\n");
+			auto addr = pop_stack<P5::addr_t>();
+			auto &out_strm = get_out_strm(addr);
+			auto c = get_val_at_addr<P5::char_t>(store, addr+1);
+			out_strm << c;
+			break;
+		}
 		//wln
 		case 5: {
 			auto ad = pop_stack<P5::addr_t>();
 			push_stack(ad);
-			printf("\n");
+			auto &out_strm = get_out_strm(ad);
+			out_strm << std::endl;
+			break;
+		}
+		//wrs
+		case 6: {
+			auto len = pop_stack<P5::int_t>();
+			auto width = pop_stack<P5::int_t>();
+			auto str_addr = pop_stack<P5::addr_t>();
+			auto file_addr = pop_stack<P5::addr_t>();
+			push_stack(file_addr);
+			auto &out_strm = get_out_strm(file_addr);
+			if (width > len) {
+				for (int i = 0; i < width-len; i++) {
+					out_strm << ' ';
+				}
+			} else {
+				len = width;
+			}
+			for (int i = 0; i < len; i++) {
+				out_strm << (char)store[str_addr + i];
+			}
 			break;
 		}
 		//wri
@@ -259,6 +492,86 @@ void Interpreter::call_sp(P5::addr_t sp_code) {
 		//wrc
 		case 24: {
 			write<P5::bool_t>();
+			break;
+		}
+		//wrf
+		case 25: {
+			auto precision = pop_stack<P5::int_t>();
+			auto width = pop_stack<P5::int_t>();
+			auto r = pop_stack<P5::real_t>();
+			auto file_addr = pop_stack<P5::addr_t>();
+			push_stack(file_addr);
+			auto &out_strm = get_out_strm(file_addr);
+			out_strm << std::setw(width) << std::setprecision(precision+1) << r;
+			break;
+		}
+
+		//rln
+		case 3: {
+			auto file_addr = pop_stack<P5::addr_t>();
+			push_stack(file_addr);
+			auto &in_strm = get_in_strm(file_addr);
+			if (in_strm.eof()) {
+				P5_ERR("end of file")
+			}
+			in_strm.ignore(std::numeric_limits<std::streamsize>::max(), in_strm.widen('\n'));
+			break;
+		}
+		//eln
+		case 7: {
+			auto file_addr = pop_stack<P5::addr_t>();
+			auto &in_strm = get_in_strm(file_addr);
+			auto next = in_strm.peek();
+			auto is_eoln = false;
+			if (next == '\n' || next == '\r') {
+				is_eoln = true;
+			}
+			push_stack(is_eoln);
+			break;
+		}
+		//rdi
+		case 11: {
+			read<P5::int_t>();
+			break;
+		}
+		//rdr
+		case 12: {
+			read<P5::real_t>();
+			break;
+		}
+		//rdc
+		case 13: {
+			read<P5::char_t>();
+			break;
+		}
+		case 14: {
+			auto r = pop_stack<P5::real_t>();
+			push_stack(sin(r));
+			break;
+		}
+		case 15: {
+			auto r = pop_stack<P5::real_t>();
+			push_stack(cos(r));
+			break;
+		}
+		case 16: {
+			auto r = pop_stack<P5::real_t>();
+			push_stack(exp(r));
+			break;
+		}
+		case 17: {
+			auto r = pop_stack<P5::real_t>();
+			push_stack(logl(r)); //ln
+			break;
+		}
+		case 18: {
+			auto r = pop_stack<P5::real_t>();
+			push_stack(sqrt(r));
+			break;
+		}
+		case 19: {
+			auto r = pop_stack<P5::real_t>();
+			push_stack(atan(r));
 			break;
 		}
 		default: {
@@ -291,7 +604,6 @@ template<>
 void Interpreter::push_stack(P5::char_t val) {
 	push_stack((P5::int_t)val);
 }
-
 
 template<typename T>
 T Interpreter::pop_stack() {
@@ -326,7 +638,7 @@ void Interpreter::lod_instr(bool is_set) {
 	auto q = get_pc<P5::addr_t>();
 	auto val = get_val_at_addr<T>(store, get_base_addr(p) + q);
 	if (is_set) {
-		setStorage->notify_push(val);
+		set_storage->notify_push(val);
 	}
 	push_stack(val);
 }
@@ -336,7 +648,7 @@ void Interpreter::ldo_instr(bool is_set) {
 	auto q = get_pc<P5::addr_t>();
 	auto val = get_val_at_addr<T>(store, pc_top + q);
 	if (is_set) {
-		setStorage->notify_push(val);
+		set_storage->notify_push(val);
 	}
 	push_stack(val);
 }
@@ -377,7 +689,7 @@ void Interpreter::ldc_instr(int type) {
 	} else if (type == 7) {
 		//set
 		auto set_id = get_pc<P5::set_t>();
-		setStorage->notify_push(set_id);
+		set_storage->notify_push(set_id);
 		push_stack(set_id);
 	}
 //	else if (type == 127) {
@@ -400,7 +712,7 @@ void Interpreter::ind_instr(bool is_set) {
 	push_stack(val);
 	//TODO: make functions like ind_set_instr for this
 	if (is_set) {
-		setStorage->notify_push(val);
+		set_storage->notify_push(val);
 	}
 }
 
@@ -439,23 +751,285 @@ void Interpreter::write() {
 	auto val = pop_stack<T>();
 	auto addr = pop_stack<P5::addr_t>();
 	push_stack(addr);
-	addr -= pc_top;
-	switch (addr) {
-		case 32:
+	auto &out_strm = get_out_strm(addr);
+	out_strm << std::setw(w) << val;
+}
+
+template<>
+void Interpreter::write<P5::bool_t>() {
+	auto w = pop_stack<P5::int_t>();//width
+	auto val = pop_stack<P5::bool_t>();
+	auto addr = pop_stack<P5::addr_t>();
+	push_stack(addr);
+	auto &out_strm = get_out_strm(addr);
+	std::string str;
+	if (val == 0) {
+		str = "false";
+	} else {
+		str = "true";
+	}
+	out_strm << std::setw(w) << str;
+}
+
+template<typename T>
+void Interpreter::read() {
+	auto put_addr = pop_stack<P5::addr_t>();
+	auto file_addr = pop_stack<P5::addr_t>();
+	push_stack(file_addr);
+	auto &in_strm = get_in_strm(file_addr);
+	T val;
+	in_strm >> val;
+	put_val_to_addr(store, put_addr, val);
+}
+
+#define IN_FILE_ADDR 32
+#define OUT_FILE_ADDR 34
+#define PRD_FILE_ADDR 36
+#define PRR_FILE_ADDR 38
+
+std::ostream &Interpreter::get_out_strm(P5::addr_t file_addr) {
+	file_addr -= pc_top;
+	switch (file_addr) {
+		case IN_FILE_ADDR: {
 			P5_ERR("write to input file");
-			break;
-		case 34:
-//			printf("write to output\n");
-			std::cout << std::setw(w) << val;
-			break;
-		case 36:
+		}
+		case OUT_FILE_ADDR: {
+			return std::cout;
+		}
+		case PRD_FILE_ADDR: {
 			P5_ERR("write to prd file");
-			break;
-		case 38:
+		}
+		case PRR_FILE_ADDR: {
 			printf("write to prr\n");
-			//TODO: write here
+			//TODO: implement
+			P5_ERR("unimplemented")
 			break;
-		default:
-			P5_ERR("unk write to addr %d, pc top %d\n", addr, pc_top);
+		}
+		default: {
+			P5_ERR("unk write to addr %d, pc top %d\n", file_addr, pc_top);
+		}
 	}
 }
+
+std::istream &Interpreter::get_in_strm(P5::addr_t file_addr) {
+	file_addr -= pc_top;
+	switch (file_addr) {
+		case IN_FILE_ADDR: {
+			return std::cin;
+		}
+		case OUT_FILE_ADDR: {
+			P5_ERR("input from output stream");
+		}
+		case PRD_FILE_ADDR: {
+			printf("input from prd file");
+			//TODO: implement
+			P5_ERR("unimplemented")
+			break;
+		}
+		case PRR_FILE_ADDR:
+			P5_ERR("input from prr")
+		default: {
+			P5_ERR("unk write to addr %d, pc top %d\n", file_addr, pc_top);
+		}
+	}
+}
+
+bool Interpreter::is_eof(std::istream& strm) {
+	auto next = strm.peek();
+	return next == std::istream::traits_type::eof();
+}
+
+template<typename T>
+void Interpreter::bin_op_instr(int sign) {
+	auto v2 = pop_stack<T>();
+	auto v1 = pop_stack<T>();
+	switch (sign) {
+		case EQ_SIGN: {
+			push_stack((P5::bool_t) (v1 == v2));
+			break;
+		}
+		case NEQ_SIGN: {
+			push_stack((P5::bool_t) (v1 != v2));
+			break;
+		}
+		case GE_SIGN: {
+			push_stack((P5::bool_t) (v1 >= v2));
+			break;
+		}
+		case GT_SIGN: {
+			push_stack((P5::bool_t) (v1 > v2));
+			break;
+		}
+		case LE_SIGN: {
+			push_stack((P5::bool_t) (v1 <= v2));
+			break;
+		}
+		case LT_SIGN: {
+			push_stack((P5::bool_t) (v1 < v2));
+			break;
+		}
+		case ADD_OP: {
+			push_stack(v1+v2);
+			break;
+		}
+		case SUB_OP: {
+			push_stack(v1-v2);
+			break;
+		}
+		case MUL_OP: {
+			push_stack(v1*v2);
+			break;
+		}
+		case DIV_OP: {
+			if (v2 == 0) {
+				P5_ERR("division by zero")
+			}
+			push_stack(v1/v2);
+			break;
+		}
+		case AND_OP: {
+			push_stack(v1 && v2);
+			break;
+		}
+		case OR_OP: {
+			push_stack(v1 || v2);
+			break;
+		}
+		default: {
+			P5_ERR("unknown sign comp")
+		}
+	}
+}
+
+void Interpreter::bin_op_set_instr(int sign) {
+	auto s2_id = pop_stack<P5::set_t>();
+	auto s1_id = pop_stack<P5::set_t>();
+	auto s2 = set_storage->get_set(s2_id);
+	auto s1 = set_storage->get_set(s1_id);
+	switch (sign) {
+		case EQ_SIGN: {
+			push_stack((P5::bool_t) (*s1 == *s2));
+			break;
+		}
+		case NEQ_SIGN: {
+			push_stack((P5::bool_t) (*s1 != *s2));
+			break;
+		}
+		case GE_SIGN: {
+			push_stack(check_is_subset(s1, s2));
+			break;
+		}
+		case LE_SIGN: {
+			push_stack(check_is_subset(s2, s1));
+			break;
+		}
+		//difference
+		case SUB_OP: {
+			std::unordered_set<P5::set_el_t> set;
+			for (auto v: *s1) {
+				if (s2->find(v) == s2->end()) {
+					set.insert(v);
+				}
+			}
+			P5::set_t set_id = set_storage->create_set(std::move(set));
+			push_stack(set_id);
+			set_storage->notify_push(set_id);
+			break;
+		}
+		//intersection
+		case MUL_OP: {
+
+		}
+		default: {
+			P5_ERR("unknown sign on set")
+		}
+	}
+	set_storage->notify_pop(s1_id);
+	set_storage->notify_pop(s2_id);
+}
+
+void Interpreter::bin_op_m_instr(int sign) {
+	auto q = get_pc<P5::addr_t>();
+	auto ad2 = pop_stack<P5::addr_t>();
+	auto ad1 = pop_stack<P5::addr_t>();
+	bool eq = true;
+	int i;
+	for (i = 0; i < q; i++) {
+		if (store[ad1+i] != store[ad2+i]) {
+			eq = false;
+			break;
+		}
+	}
+
+	switch (sign) {
+		case EQ_SIGN: {
+			push_stack(eq);
+			break;
+		}
+		case NEQ_SIGN: {
+			push_stack(!eq);
+			break;
+		}
+		case GE_SIGN: {
+			push_stack(eq || (store[ad1+i] >= store[ad2+i]));
+			break;
+		}
+		case GT_SIGN: {
+			push_stack(!eq && (store[ad1+i] > store[ad2+i]));
+			break;
+		}
+		case LE_SIGN: {
+			push_stack(eq || (store[ad1+i] <= store[ad2+i]));
+			break;
+		}
+		case LT_SIGN: {
+			push_stack(!eq && (store[ad1+i] < store[ad2+i]));
+			break;
+		}
+		default: {
+			P5_ERR("unknown sign on compm")
+		}
+	}
+//	push_stack(eq);
+}
+
+P5::bool_t Interpreter::check_is_subset(std::shared_ptr<std::unordered_set<P5::set_el_t>> set,
+								  std::shared_ptr<std::unordered_set<P5::set_el_t>> subset) {
+	for (auto &v: *subset) {
+		if (set->find(v) == set->end()) {
+			return false;
+		}
+	}
+	return true;
+}
+
+template<typename T>
+void Interpreter::unary_op_instr(int op) {
+	auto v = pop_stack<T>();
+	switch (op) {
+		case NEG_OP: {
+			push_stack(-v);
+			break;
+		}
+		case SQR_OP: {
+			push_stack(v*v);
+			break;
+		}
+		case ABS_OP: {
+			if (v < 0) {
+				v = -v;
+			}
+			push_stack(v);
+			break;
+		}
+		case NOT_OP: {
+			push_stack(!v);
+			break;
+		}
+		default: {
+			P5_ERR("invalid unary operation %d", op)
+		}
+	}
+}
+
+#pragma clang diagnostic pop
