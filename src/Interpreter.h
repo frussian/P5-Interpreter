@@ -7,6 +7,7 @@
 
 #include <unordered_set>
 #include <memory>
+#include <fstream>
 
 #include "p5_common.h"
 
@@ -69,8 +70,11 @@ private:
 	T pop_stack();
 
 	std::ostream &get_out_strm(P5::addr_t file_addr);
+	std::fstream &get_out_file_strm(P5::addr_t file_addr);
 	std::istream &get_in_strm(P5::addr_t file_addr);
 	static bool is_eof(std::istream& strm);
+	std::fstream prr_strm;
+	std::fstream prd_strm;
 
 	template<typename T>
 	void lod_instr(bool is_set = false);

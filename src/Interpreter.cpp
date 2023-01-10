@@ -5,6 +5,7 @@
 #include <iomanip>
 #include <cmath>
 #include <limits>
+#include <fstream>
 
 #include "Interpreter.h"
 #include "Assembler.h"
@@ -104,7 +105,6 @@ void Interpreter::write<P5::bool_t>();
 #define SUB_OP 8
 #define MUL_OP 9
 #define DIV_OP 10
-#define MOD_OP 11
 
 #define NEG_OP 12
 #define SQR_OP 13
@@ -113,6 +113,11 @@ void Interpreter::write<P5::bool_t>();
 #define NOT_OP 15
 #define AND_OP 16
 #define OR_OP 17
+
+#define IN_FILE_ADDR 32
+#define OUT_FILE_ADDR 34
+#define PRD_FILE_ADDR 36
+#define PRR_FILE_ADDR 38
 
 #pragma clang diagnostic push
 #pragma ide diagnostic ignored "UnreachableCode"
@@ -125,7 +130,7 @@ void Interpreter::run() {
 
 	while (interpreting) {
 		auto op_code = get_pc<P5::ins_t>();
-//		printf("running op_code %d %s\n", op_code, Assembler::op_codes[op_code].name.c_str());
+		printf("running op_code %d %s\n", op_code, Assembler::op_codes[op_code].name.c_str());
 		switch (op_code) {
 			//lod
 			CASES_WITH_PUSH(0, 105, lod_instr)
@@ -371,11 +376,176 @@ void Interpreter::run() {
 				break;
 			}
 
-
+			//set diff
+			case 45: {
+				bin_op_set_instr(SUB_OP);
+				break;
+			}
+			//set intersection
+			case 46: {
+				bin_op_set_instr(MUL_OP);
+				break;
+			}
+			//set union
+			case 47: {
+				bin_op_set_instr(ADD_OP);
+				break;
+			}
+			//inn
+			case 48: {
+				auto set_id = pop_stack<P5::set_t>();
+				auto set = set_storage->get_set(set_id);
+				auto i = pop_stack<P5::int_t>();
+				push_stack(set->find(i) != set->end());
+				set_storage->notify_pop(set_id);
+				break;
+			}
+			//mod
+			case 49: {
+				auto i2 = pop_stack<P5::int_t>();
+				auto i1 = pop_stack<P5::int_t>();
+				push_stack(i1 % i2);
+				break;
+			}
+			//odd
+			case 50: {
+				auto i = pop_stack<P5::int_t>();
+				push_stack((i % 2) == 1);
+				break;
+			}
 			//mp
 			BIN_OP_CASES(51, MUL_OP)
 			//div
 			BIN_OP_CASES(53, DIV_OP)
+
+			//mov
+			case 55: {
+				auto q = get_pc<P5::addr_t>();
+				auto i2 = pop_stack<P5::int_t>();
+				auto i1 = pop_stack<P5::int_t>();
+				for (int i = 0; i < q; i++) {
+					store[i1+i] = store[i2+i];
+				}
+				break;
+			}
+
+			//lca
+			case 56: {
+				auto q = get_pc<P5::addr_t>();
+				push_stack(q);
+				break;
+			}
+			//dec
+			case 103:
+			case 104:
+			case 57: {
+				auto q = get_pc<P5::addr_t>();
+				auto i = pop_stack<P5::int_t>();
+				push_stack(i-q);
+				break;
+			}
+
+			case 58: interpreting = false; break;
+
+			//ord ignore
+			case 134:
+			case 136:
+			case 59: break;
+			//rnd
+			case 62: {
+				auto r = pop_stack<P5::real_t>();
+				push_stack((P5::int_t)std::round(r));
+				break;
+			}
+
+			//pck
+			case 63: {
+				auto q = get_pc<P5::addr_t>();
+				auto q1 = get_pc<P5::addr_t>();
+				auto a3 = pop_stack<P5::addr_t>();
+				auto a2 = pop_stack<P5::addr_t>();
+				auto a1 = pop_stack<P5::addr_t>();
+				if (a2 + q > q1) {
+					P5_ERR("pack elements out of bounds")
+				}
+				for (int i = 0; i < q; i++) {
+					store[a3+i] = store[a1+a2];
+					a2++;
+				}
+				break;
+			}
+			//upk
+			case 64: {
+				auto q = get_pc<P5::addr_t>();
+				auto q1 = get_pc<P5::addr_t>();
+				auto a3 = pop_stack<P5::addr_t>();
+				auto a2 = pop_stack<P5::addr_t>();
+				auto a1 = pop_stack<P5::addr_t>();
+				if (a3 + q > q1) {
+					P5_ERR("pack elements out of bounds")
+				}
+				for (int i = 0; i < q; i++) {
+					store[a2+a3] = store[a1+i];
+					a3++;
+				}
+				break;
+			}
+
+			//grs
+			case 110: {
+				auto i2 = pop_stack<P5::int_t>();
+				auto i1 = pop_stack<P5::int_t>();
+				std::unordered_set<P5::set_el_t> set;
+				for (int i = i1; i <= i2; i++) {
+					set.insert(i);
+				}
+				P5::set_t set_id = set_storage->create_set(std::move(set));
+				set_storage->notify_push(set_id);
+				push_stack(set_id);
+				break;
+			}
+
+			//fbv
+			case 111: {
+//				printf("fbv\n");
+				auto file_addr = pop_stack<P5::addr_t>();
+				push_stack(file_addr);
+				auto &in_strm = get_in_strm(file_addr);
+				auto c = in_strm.peek();
+				put_val_to_addr(store, file_addr+1, (char)c);
+				break;
+			}
+
+			//ipj
+			case 112: {
+				auto p = get_pc<P5::lvl_t>();
+				auto q = get_pc<P5::addr_t>();
+				pc = q;
+				mp = get_base_addr(p);
+				sp = get_val_at_addr<P5::addr_t>(store, mp+ms_stack_bottom_off);
+				ep = get_val_at_addr<P5::addr_t>(store, mp+ms_ep_cur_off);
+				break;
+			}
+			//cip
+			case 113: {
+				auto p = get_pc<P5::lvl_t>();
+				auto ad = pop_stack<P5::addr_t>();
+				mp = sp - (p+mark_stack_size);
+				put_val_to_addr(store, mp+ms_st_link_off, get_val_at_addr<P5::addr_t>(store, ad));
+				put_val_to_addr(store, mp+ms_ret_addr_off, pc);
+				pc = get_val_at_addr<P5::addr_t>(store, ad+4); //size of pointer
+				break;
+			}
+			//lpa
+			case 114: {
+				auto p = get_pc<P5::lvl_t>();
+				auto q = get_pc<P5::addr_t>();
+				push_stack(get_base_addr(p));
+				push_stack(q);
+				break;
+			}
+
+			//TODO: case 115(efb), case 116(fvb)
 
 			//dmp
 			case 117: {
@@ -387,8 +557,6 @@ void Interpreter::run() {
 			//swp
 			case 118: {
 				auto q = get_pc<P5::addr_t>();
-				//TODO: change this
-//				q = 1;
 				unsigned char buf[q];
 				auto ptr = get_val_at_addr<P5::addr_t>(store, sp-P5::addr_size);
 				get_val_at_addr_by_ptr(store, sp-P5::addr_size-q, buf, q);
@@ -398,22 +566,24 @@ void Interpreter::run() {
 				break;
 			}
 
-			//lca
-			case 56: {
+			//tjp
+			case 119: {
 				auto q = get_pc<P5::addr_t>();
-				push_stack(q);
+				auto i = pop_stack<P5::int_t>();
+				if (i != 0) {
+					pc = q;
+				}
 				break;
 			}
-			case 58: interpreting = false; break;
-
-			//fbv
-			case 111: {
-//				printf("fbv\n");
-				auto file_addr = pop_stack<P5::addr_t>();
-				push_stack(file_addr);
-				auto &in_strm = get_in_strm(file_addr);
-				auto c = in_strm.peek();
-				put_val_to_addr(store, file_addr+1, (char)c);
+			//lip
+			case 120: {
+				auto p = get_pc<P5::lvl_t>();
+				auto q = get_pc<P5::addr_t>();
+				auto ad = get_base_addr(p) + q;
+				auto i = get_val_at_addr<P5::addr_t>(store, ad);
+				auto a1 = get_val_at_addr<P5::addr_t>(store, ad+4); //ptr size
+				push_stack(i);
+				push_stack(a1);
 				break;
 			}
 
@@ -572,6 +742,29 @@ void Interpreter::call_sp(P5::addr_t sp_code) {
 		case 19: {
 			auto r = pop_stack<P5::real_t>();
 			push_stack(atan(r));
+			break;
+		}
+
+		//rsf
+		case 22: {
+			auto ad = pop_stack<P5::addr_t>();
+			if (ad - pc_top == IN_FILE_ADDR) {
+				P5_ERR("reset on input file")
+			}
+			auto &in_strm = get_in_strm(ad);
+			in_strm.seekg(0, std::ios_base::beg);
+			break;
+		}
+		//rwf
+		case 23: {
+			auto ad = pop_stack<P5::addr_t>();
+			if (ad - pc_top == OUT_FILE_ADDR) {
+				P5_ERR("rewrite on output file")
+			}
+			auto &f_strm = get_out_file_strm(ad);
+			//TODO: general reopen
+			f_strm.close();
+			f_strm.open("prr", std::ofstream::out | std::ofstream::trunc);
 			break;
 		}
 		default: {
@@ -782,11 +975,6 @@ void Interpreter::read() {
 	put_val_to_addr(store, put_addr, val);
 }
 
-#define IN_FILE_ADDR 32
-#define OUT_FILE_ADDR 34
-#define PRD_FILE_ADDR 36
-#define PRR_FILE_ADDR 38
-
 std::ostream &Interpreter::get_out_strm(P5::addr_t file_addr) {
 	file_addr -= pc_top;
 	switch (file_addr) {
@@ -801,14 +989,34 @@ std::ostream &Interpreter::get_out_strm(P5::addr_t file_addr) {
 		}
 		case PRR_FILE_ADDR: {
 			printf("write to prr\n");
-			//TODO: implement
-			P5_ERR("unimplemented")
-			break;
+			return prr_strm;
 		}
 		default: {
 			P5_ERR("unk write to addr %d, pc top %d\n", file_addr, pc_top);
 		}
 	}
+}
+
+std::fstream &Interpreter::get_out_file_strm(P5::addr_t file_addr) {
+	file_addr -= pc_top;
+	switch (file_addr) {
+		case IN_FILE_ADDR: {
+			P5_ERR("get out file on input file")
+		}
+		case OUT_FILE_ADDR: {
+			P5_ERR("get out file on output file");
+		}
+		case PRD_FILE_ADDR: {
+			P5_ERR("get out file on prd")
+		}
+		case PRR_FILE_ADDR: {
+			return prr_strm;
+		}
+		default: {
+			P5_ERR("unk write to addr %d, pc top %d\n", file_addr, pc_top);
+		}
+	}
+
 }
 
 std::istream &Interpreter::get_in_strm(P5::addr_t file_addr) {
@@ -938,7 +1146,31 @@ void Interpreter::bin_op_set_instr(int sign) {
 		}
 		//intersection
 		case MUL_OP: {
+			std::unordered_set<P5::set_el_t> set;
+			for (auto v: *s1) {
+				if (s2->find(v) != s2->end()) {
+					set.insert(v);
+				}
+			}
+			P5::set_t set_id = set_storage->create_set(std::move(set));
+			push_stack(set_id);
+			set_storage->notify_push(set_id);
+			break;
+		}
+		//union
+		case ADD_OP: {
+			std::unordered_set<P5::set_el_t> set;
+			for (auto v: *s1) {
+				set.insert(v);
+			}
+			for (auto v: *s2) {
+				set.insert(v);
+			}
 
+			P5::set_t set_id = set_storage->create_set(std::move(set));
+			push_stack(set_id);
+			set_storage->notify_push(set_id);
+			break;
 		}
 		default: {
 			P5_ERR("unknown sign on set")
