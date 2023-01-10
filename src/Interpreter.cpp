@@ -130,7 +130,7 @@ void Interpreter::run() {
 
 	while (interpreting) {
 		auto op_code = get_pc<P5::ins_t>();
-		printf("running op_code %d %s\n", op_code, Assembler::op_codes[op_code].name.c_str());
+//		printf("running op_code %d %s\n", op_code, Assembler::op_codes[op_code].name.c_str());
 		switch (op_code) {
 			//lod
 			CASES_WITH_PUSH(0, 105, lod_instr)
@@ -332,8 +332,8 @@ void Interpreter::run() {
 				//TODO: check set element type
 				set.insert(i);
 				auto set_id = set_storage->create_set(std::move(set));
+				set_id = set_storage->notify_push(set_id);
 				push_stack(set_id);
-				set_storage->notify_push(set_id);
 				break;
 			}
 			//flt
@@ -500,7 +500,7 @@ void Interpreter::run() {
 					set.insert(i);
 				}
 				P5::set_t set_id = set_storage->create_set(std::move(set));
-				set_storage->notify_push(set_id);
+				set_id = set_storage->notify_push(set_id);
 				push_stack(set_id);
 				break;
 			}
@@ -592,6 +592,8 @@ void Interpreter::run() {
 			}
 		}
 	}
+
+	printf("program complete\n");
 }
 #pragma clang diagnostic pop
 
@@ -831,7 +833,7 @@ void Interpreter::lod_instr(bool is_set) {
 	auto q = get_pc<P5::addr_t>();
 	auto val = get_val_at_addr<T>(store, get_base_addr(p) + q);
 	if (is_set) {
-		set_storage->notify_push(val);
+		val = set_storage->notify_push(val);
 	}
 	push_stack(val);
 }
@@ -841,7 +843,7 @@ void Interpreter::ldo_instr(bool is_set) {
 	auto q = get_pc<P5::addr_t>();
 	auto val = get_val_at_addr<T>(store, pc_top + q);
 	if (is_set) {
-		set_storage->notify_push(val);
+		val = set_storage->notify_push(val);
 	}
 	push_stack(val);
 }
@@ -882,7 +884,7 @@ void Interpreter::ldc_instr(int type) {
 	} else if (type == 7) {
 		//set
 		auto set_id = get_pc<P5::set_t>();
-		set_storage->notify_push(set_id);
+		set_id = set_storage->notify_push(set_id);
 		push_stack(set_id);
 	}
 //	else if (type == 127) {
@@ -902,11 +904,11 @@ void Interpreter::ind_instr(bool is_set) {
 	auto q = get_pc<P5::addr_t>();
 	auto addr = pop_stack<P5::addr_t>();
 	T val = get_val_at_addr<T>(store, addr + q);
-	push_stack(val);
 	//TODO: make functions like ind_set_instr for this
 	if (is_set) {
-		set_storage->notify_push(val);
+		val = set_storage->notify_push(val);
 	}
+	push_stack(val);
 }
 
 template<typename T>
@@ -1140,8 +1142,8 @@ void Interpreter::bin_op_set_instr(int sign) {
 				}
 			}
 			P5::set_t set_id = set_storage->create_set(std::move(set));
+			set_id = set_storage->notify_push(set_id);
 			push_stack(set_id);
-			set_storage->notify_push(set_id);
 			break;
 		}
 		//intersection
@@ -1153,8 +1155,8 @@ void Interpreter::bin_op_set_instr(int sign) {
 				}
 			}
 			P5::set_t set_id = set_storage->create_set(std::move(set));
+			set_id = set_storage->notify_push(set_id);
 			push_stack(set_id);
-			set_storage->notify_push(set_id);
 			break;
 		}
 		//union
@@ -1166,10 +1168,21 @@ void Interpreter::bin_op_set_instr(int sign) {
 			for (auto v: *s2) {
 				set.insert(v);
 			}
-
+//			for (auto v: *s1) {
+//				printf("%d ", v);
+//			}
+//			printf("\n");
+//			for (auto v: *s2) {
+//				printf("%d ", v);
+//			}
+//			printf("\n");
+//			for (auto v: set) {
+//				printf("%d ", v);
+//			}
+//			printf("\n");
 			P5::set_t set_id = set_storage->create_set(std::move(set));
+			set_id = set_storage->notify_push(set_id);
 			push_stack(set_id);
-			set_storage->notify_push(set_id);
 			break;
 		}
 		default: {

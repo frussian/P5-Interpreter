@@ -4,7 +4,7 @@
 
 #include <limits>
 #include <iostream>
-
+#include <ctype.h>
 #include "Lexer.h"
 #include "p5_errors.h"
 
@@ -47,6 +47,31 @@ unsigned char Lexer::get<unsigned char>() {
 	int val;
 	strm >> val;
 	return val;
+}
+
+template <>
+std::string Lexer::get<std::string>() {
+	std::string str;
+	auto &s = strm >> std::skipws;
+	char c;
+//strm
+//	do {
+//		strm >> c;
+////		printf("%c(%d) ", c, c);
+//
+//	} while (iswspace(c));
+
+	strm >> c;
+	str += c;
+
+	printf("%d\n", s.peek());
+
+	while (isalpha(c = s.peek())) {
+		s >> c;
+		str += c;
+	}
+//	strm >> std::skipws >> str;
+	return str;
 }
 
 char Lexer::peek() {

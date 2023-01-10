@@ -27,12 +27,12 @@ public:
 //	};
 
 	P5::set_t create_set(std::unordered_set<P5::set_el_t> &&set);
-	std::shared_ptr<std::unordered_set<P5::set_el_t>> get_set(int id);
-	void notify_push(int id);
-	void notify_pop(int id);
+	std::shared_ptr<std::unordered_set<P5::set_el_t>> get_set(P5::set_t id);
+	P5::set_t notify_push(P5::set_t id);
+	void notify_pop(P5::set_t id);
 
 private:
-	P5::set_t next_id = 0;
+	P5::set_t next_id = 1;
 	struct set_info_t {
 		std::shared_ptr<std::unordered_set<P5::set_el_t>> set;
 		int count;

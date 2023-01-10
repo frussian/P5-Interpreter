@@ -102,7 +102,7 @@ void Assembler::generate() {
 		switch (c) {
 			//comment
 			case 'i': {
-				printf("i");
+//				printf("i");
 				lexer->get_line();
 				break;
 			}
@@ -145,7 +145,7 @@ void Assembler::generate() {
 void Assembler::assemble() {
 	std::string name = lexer->get<std::string>();
 //	std::string name = "tes";
-//	printf("instr %s\n", name.c_str());
+	printf("instr %s\n", name.c_str());
 	auto ins_it = instr.find(name);
 	if (ins_it == instr.end()) {
 		P5_ERR("illegal instruction: %s\n", name.c_str());
@@ -278,6 +278,7 @@ void Assembler::assemble() {
 		//csp
 		case 15: {
 			auto sp_name = lexer->get<std::string>();
+			std::cout << sp_name << std::endl;
 			auto sp_it = sp_table.find(sp_name);
 			if (sp_it == sp_table.end()) {
 				P5_ERR("undefined standard procedure/function %s\n", sp_name.c_str());
@@ -356,7 +357,7 @@ void Assembler::assemble() {
 			c = ' ';
 			std::unordered_set<P5::set_el_t> set;
 			while (c != ')') {
-				auto elem = lexer->get<P5::set_el_t>();
+				auto elem = lexer->get<int>();
 				set.insert(elem);
 				c = lexer->get<char>();
 			}

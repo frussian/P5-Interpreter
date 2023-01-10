@@ -20,5 +20,4 @@ int main(int argc, char *argv[]) {
 	Interpreter interpreter(store, assembler.get_set_storage(),
 							assembler.get_pc_top(), assembler.get_cp());
 	interpreter.run();
-
 }
