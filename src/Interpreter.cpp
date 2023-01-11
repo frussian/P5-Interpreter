@@ -15,6 +15,7 @@
 
 #pragma clang diagnostic push
 #pragma ide diagnostic ignored "EndlessLoop"
+
 int Interpreter::ms_fret_off = 0;
 int Interpreter::ms_st_link_off = 8;
 int Interpreter::ms_dyn_link_off = 12;
@@ -121,7 +122,26 @@ void Interpreter::write<P5::bool_t>();
 
 #pragma clang diagnostic push
 #pragma ide diagnostic ignored "UnreachableCode"
+
+Interpreter::file_info::file_info(P5::addr_t addr) {
+	if (addr == PRD_FILE_ADDR) {
+		name = "prd";
+	} else if (addr == PRR_FILE_ADDR) {
+		name = "prr";
+	} else {
+		name = std::string("p5_temp_") + std::to_string(addr) + ".txt";
+	}
+	strm = std::fstream(name, std::ofstream::out | std::ofstream::trunc);
+}
+
+void Interpreter::file_info::reopen() {
+	strm.open(name, std::ofstream::out | std::ofstream::trunc);
+}
+
 void Interpreter::run() {
+	files.emplace(PRD_FILE_ADDR, PRD_FILE_ADDR);
+	files.emplace(PRR_FILE_ADDR, PRR_FILE_ADDR);
+
 	printf("running program\n");
 	pc = 0;
 	ep = 5;
@@ -599,6 +619,36 @@ void Interpreter::run() {
 }
 #pragma clang diagnostic pop
 
+P5::addr_t Interpreter::find_free_adr(P5::addr_t req_len) {
+	P5::addr_t blk = np;
+	P5::addr_t blk2;
+	bool found = false;
+	P5::addr_t found_blk_len;
+
+	while (blk < cp) {
+		found_blk_len = get_val_at_addr<P5::addr_t>(store, blk);
+		if (found_blk_len >= req_len + P5::addr_size) {
+			found = true;
+			break;
+		} else {
+			blk += abs(found_blk_len);
+		}
+	}
+
+	if (!found) return 0;
+
+	put_val_to_addr(store, blk, -(req_len+P5::addr_size));
+	blk2 = blk;
+	blk += P5::addr_size;
+	//create new free block from current found block
+	if (found_blk_len > req_len + 2 * P5::addr_size) {
+		blk2 += req_len + P5::addr_size;
+		put_val_to_addr(store, blk2, found_blk_len-(req_len+P5::addr_size));
+	}
+
+	return blk;
+}
+
 void Interpreter::call_sp(P5::addr_t sp_code) {
 	switch (sp_code) {
 		//get
@@ -618,6 +668,27 @@ void Interpreter::call_sp(P5::addr_t sp_code) {
 			auto &out_strm = get_out_strm(addr);
 			auto c = get_val_at_addr<P5::char_t>(store, addr+1);
 			out_strm << c;
+			break;
+		}
+		//new
+		case 4: {
+			auto req_len = pop_stack<P5::addr_t>();
+			//try finding existing block portion
+			P5::addr_t blk_addr = find_free_adr(req_len);
+
+			//allocate new block
+			if (blk_addr == 0) {
+				blk_addr = np - (req_len + P5::addr_size);
+				if (blk_addr <= ep) {
+					P5_ERR("heap area overlap with stack")
+				}
+				np = blk_addr;
+				put_val_to_addr(store, blk_addr, -(req_len+P5::addr_size));
+				blk_addr += P5::addr_size;
+			}
+
+			auto put_addr = pop_stack<P5::addr_t>();
+			put_val_to_addr(store, put_addr, blk_addr);
 			break;
 		}
 		//wln
@@ -755,8 +826,8 @@ void Interpreter::call_sp(P5::addr_t sp_code) {
 			if (ad - pc_top == IN_FILE_ADDR) {
 				P5_ERR("reset on input file")
 			}
-			auto &in_strm = get_in_strm(ad);
-			in_strm.seekg(0, std::ios_base::beg);
+			auto &in_strm = get_in_file_strm(ad);
+			in_strm.reopen();
 			break;
 		}
 		//rwf
@@ -766,9 +837,7 @@ void Interpreter::call_sp(P5::addr_t sp_code) {
 				P5_ERR("rewrite on output file")
 			}
 			auto &f_strm = get_out_file_strm(ad);
-			//TODO: general reopen
-			f_strm.close();
-			f_strm.open("prr", std::ofstream::out | std::ofstream::trunc);
+			f_strm.reopen();
 			break;
 		}
 		default: {
@@ -979,6 +1048,15 @@ void Interpreter::read() {
 	put_val_to_addr(store, put_addr, val);
 }
 
+Interpreter::file_info &Interpreter::find_or_insert_file_info(P5::addr_t file_addr) {
+	auto info_it = files.find(file_addr);
+	if (info_it == files.end()) {
+		info_it = files.emplace(file_addr, file_addr).first;
+	}
+	return info_it->second;
+}
+
+
 std::ostream &Interpreter::get_out_strm(P5::addr_t file_addr) {
 	file_addr -= pc_top;
 	switch (file_addr) {
@@ -991,17 +1069,13 @@ std::ostream &Interpreter::get_out_strm(P5::addr_t file_addr) {
 		case PRD_FILE_ADDR: {
 			P5_ERR("write to prd file");
 		}
-		case PRR_FILE_ADDR: {
-			printf("write to prr\n");
-			return prr_strm;
-		}
 		default: {
-			P5_ERR("unk write to addr %d, pc top %d\n", file_addr, pc_top);
+			return find_or_insert_file_info(file_addr).strm;
 		}
 	}
 }
 
-std::fstream &Interpreter::get_out_file_strm(P5::addr_t file_addr) {
+Interpreter::file_info &Interpreter::get_out_file_strm(P5::addr_t file_addr) {
 	file_addr -= pc_top;
 	switch (file_addr) {
 		case IN_FILE_ADDR: {
@@ -1013,11 +1087,8 @@ std::fstream &Interpreter::get_out_file_strm(P5::addr_t file_addr) {
 		case PRD_FILE_ADDR: {
 			P5_ERR("get out file on prd")
 		}
-		case PRR_FILE_ADDR: {
-			return prr_strm;
-		}
 		default: {
-			P5_ERR("unk write to addr %d, pc top %d\n", file_addr, pc_top);
+			return find_or_insert_file_info(file_addr);
 		}
 	}
 
@@ -1032,16 +1103,30 @@ std::istream &Interpreter::get_in_strm(P5::addr_t file_addr) {
 		case OUT_FILE_ADDR: {
 			P5_ERR("input from output stream");
 		}
-		case PRD_FILE_ADDR: {
-			printf("input from prd file");
-			//TODO: implement
-			P5_ERR("unimplemented")
-			break;
-		}
 		case PRR_FILE_ADDR:
 			P5_ERR("input from prr")
 		default: {
-			P5_ERR("unk write to addr %d, pc top %d\n", file_addr, pc_top);
+			return find_or_insert_file_info(file_addr).strm;
+		}
+	}
+}
+
+
+Interpreter::file_info &Interpreter::get_in_file_strm(P5::addr_t file_addr) {
+	file_addr -= pc_top;
+	switch (file_addr) {
+		case IN_FILE_ADDR: {
+			P5_ERR("get file strm from input stream");
+		}
+		case OUT_FILE_ADDR: {
+			P5_ERR("input from output stream");
+		}
+		case PRR_FILE_ADDR: {
+			P5_ERR("input from prr")
+		}
+		default: {
+			return find_or_insert_file_info(file_addr);
+			P5_ERR("get in strm unk write to addr %d, pc top %d\n", file_addr, pc_top);
 		}
 	}
 }

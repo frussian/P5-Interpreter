@@ -44,6 +44,6 @@ void SetStorage::notify_pop(P5::set_t id) {
 	it->second.count--;
 	if (it->second.count == 0) {
 		//TODO: remove
-		storage.erase(it);
+//		storage.erase(it);
 	}
 }

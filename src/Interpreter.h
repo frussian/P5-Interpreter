@@ -8,6 +8,7 @@
 #include <unordered_set>
 #include <memory>
 #include <fstream>
+#include <unordered_map>
 
 #include "p5_common.h"
 
@@ -19,7 +20,6 @@ public:
 			store(store), set_storage(setStorage), pc_top(pc_top), mp(pc_top), sp(pc_top), ep(5), cp(cp), np(cp){};
 
 	void run();
-
 
 private:
 	SetStorage *set_storage;
@@ -59,6 +59,7 @@ private:
 	//storage
 	P5::store_t &store;
 
+	P5::addr_t find_free_adr(P5::addr_t req_len);
 	void call_sp(P5::addr_t sp_code);
 
 	P5::addr_t get_base_addr(P5::ins_t p);
@@ -69,12 +70,21 @@ private:
 	template<typename T>
 	T pop_stack();
 
+	class file_info {
+	public:
+		file_info(P5::addr_t addr);
+		void reopen();
+		std::string name;
+		std::fstream strm;
+	};
+	file_info &find_or_insert_file_info(P5::addr_t file_addr);
+	std::unordered_map<P5::addr_t, file_info> files;
+
 	std::ostream &get_out_strm(P5::addr_t file_addr);
-	std::fstream &get_out_file_strm(P5::addr_t file_addr);
+	Interpreter::file_info &get_out_file_strm(P5::addr_t file_addr);
 	std::istream &get_in_strm(P5::addr_t file_addr);
+	Interpreter::file_info &get_in_file_strm(P5::addr_t file_addr);
 	static bool is_eof(std::istream& strm);
-	std::fstream prr_strm;
-	std::fstream prd_strm;
 
 	template<typename T>
 	void lod_instr(bool is_set = false);
