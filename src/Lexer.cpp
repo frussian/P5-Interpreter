@@ -64,7 +64,7 @@ std::string Lexer::get<std::string>() {
 	strm >> c;
 	str += c;
 
-	printf("%d\n", s.peek());
+//	printf("%d\n", s.peek());
 
 	while (isalpha(c = s.peek())) {
 		s >> c;

@@ -56,8 +56,8 @@ void Assembler::load() {
 	pc = 0;
 //	dump();
 	generate();
-	dump();
-	lb_table->dump();
+//	dump();
+//	lb_table->dump();
 }
 
 void Assembler::dump() {
@@ -115,7 +115,7 @@ void Assembler::generate() {
 				} else {
 					lbl_val = pc;
 				}
-				printf("label %d %d %d\n", x, c, lbl_val);
+//				printf("label %d %d %d\n", x, c, lbl_val);
 				lb_table->update(x, lbl_val);
 				lexer->get_line();
 				break;
@@ -145,7 +145,7 @@ void Assembler::generate() {
 void Assembler::assemble() {
 	std::string name = lexer->get<std::string>();
 //	std::string name = "tes";
-	printf("instr %s\n", name.c_str());
+//	printf("instr %s\n", name.c_str());
 	auto ins_it = instr.find(name);
 	if (ins_it == instr.end()) {
 		P5_ERR("illegal instruction: %s\n", name.c_str());
@@ -278,7 +278,7 @@ void Assembler::assemble() {
 		//csp
 		case 15: {
 			auto sp_name = lexer->get<std::string>();
-			std::cout << sp_name << std::endl;
+//			std::cout << sp_name << std::endl;
 			auto sp_it = sp_table.find(sp_name);
 			if (sp_it == sp_table.end()) {
 				P5_ERR("undefined standard procedure/function %s\n", sp_name.c_str());
@@ -354,12 +354,14 @@ void Assembler::assemble() {
 			if (c != '(') {
 				P5_ERR("expected (, got %c\n", c);
 			}
-			c = ' ';
 			std::unordered_set<P5::set_el_t> set;
+			c = lexer->get<char>();
 			while (c != ')') {
 				auto elem = lexer->get<int>();
+//				std::cout << "elem " << elem << std::endl;
 				set.insert(elem);
 				c = lexer->get<char>();
+//				std::cout << "char " << (int)c << std::endl;
 			}
 
 			int set_id = set_storage->create_set(std::move(set));
@@ -397,12 +399,12 @@ void Assembler::assemble() {
 		}
 		//lca
 		case 56: {
-			printf("lca\n");
+//			printf("lca\n");
 			auto l = lexer->get<int>();
 			lexer->skip_spaces();
 			auto c = lexer->get<char>();
 			expect_char('\'', c);
-			printf("lca params: %d %c\n", l, c);
+//			printf("lca params: %d %c\n", l, c);
 			std::string str(l, ' ');
 			c = lexer->get<char>();
 			int i = 0;
@@ -410,8 +412,8 @@ void Assembler::assemble() {
 				str[i] = c;
 				c = lexer->get<char>();
 				i++;
-			};
-			printf("lca string: %s\n", str.c_str());
+			}
+//			printf("lca string: %s\n", str.c_str());
 			if (pc > cp - l) {
 				P5_ERR("Constant table overflow");
 			}

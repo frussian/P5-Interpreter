@@ -451,6 +451,8 @@ void Interpreter::run() {
 			case 134:
 			case 136:
 			case 59: break;
+			//chr
+			case 60: break;
 			//rnd
 			case 62: {
 				auto r = pop_stack<P5::real_t>();
