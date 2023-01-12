@@ -72,7 +72,9 @@ private:
 
 	class file_info {
 	public:
-		file_info(P5::addr_t addr);
+		explicit file_info(P5::addr_t addr);
+		~file_info();
+
 		void reopen();
 		std::string name;
 		std::fstream strm;

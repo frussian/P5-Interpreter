@@ -30,7 +30,7 @@ public:
 	std::shared_ptr<std::unordered_set<P5::set_el_t>> get_set(P5::set_t id);
 	P5::set_t notify_push(P5::set_t id);
 	void notify_pop(P5::set_t id);
-
+	P5::set_t get_id(P5::set_t id);
 private:
 	P5::set_t next_id = 1;
 	struct set_info_t {

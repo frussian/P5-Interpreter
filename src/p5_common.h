@@ -12,17 +12,17 @@ namespace P5 {
 	typedef unsigned char ins_t; //opcode
 	typedef unsigned char lvl_t; //p
 	typedef unsigned char set_el_t;
-	typedef int set_t;
+	typedef short set_t;
 	typedef std::vector<unsigned char> store_t;
 	typedef double real_t;
 	typedef bool bool_t;
 	typedef char char_t;//TODO: maybe unsigned char
 	typedef int int_t;
 
-	static int addr_size = 4;
-	static int int_size = 4;
-	static int char_size = 1;
-	static int bool_size = 1;
+	static int addr_size = sizeof(P5::addr_t);
+	static int int_size = sizeof(P5::int_t);
+	static int char_size = sizeof(P5::char_t);
+	static int bool_size = sizeof(P5::bool_t);
 	static int set_size = 32;
 	static int max_store = 16777216;
 }

@@ -52,8 +52,10 @@ LabelTable::LabelInfo *LabelTable::find_or_insert_lbl_info(int lbl) {
 }
 
 void LabelTable::dump() {
-	printf("label table:\n");
+	FILE *dmp = fopen("lbls_dump.txt", "w");
+	fprintf(dmp, "label table:\n");
 	for (const auto p: lb_storage) {
-		printf("l %d - pc %d (defined %d)\n", p.first, p.second.ptr, p.second.defined);
+		fprintf(dmp, "l %d - pc %d (defined %d)\n", p.first, p.second.ptr, p.second.defined);
 	}
+	fclose(dmp);
 }

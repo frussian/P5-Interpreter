@@ -28,12 +28,43 @@ int Interpreter::mark_stack_size = 32;
 
 template<>
 void Interpreter::push_stack(P5::bool_t val);
+template<>
+void Interpreter::push_stack(P5::set_t val);
 
 template<>
 P5::char_t Interpreter::pop_stack();
+template<>
+P5::set_t Interpreter::pop_stack();
 
 template<>
 void Interpreter::write<P5::bool_t>();
+
+template<>
+void Interpreter::read<P5::char_t>();
+
+//template<>
+//void Interpreter::write<P5::char_t>();
+
+template<>
+void Interpreter::lod_instr<P5::set_t>(bool is_set);
+
+template<>
+void Interpreter::ldo_instr<P5::set_t>(bool is_set);
+
+template<>
+void Interpreter::str_instr<P5::set_t>();
+
+template<>
+void Interpreter::sro_instr<P5::set_t>();
+
+template<>
+void Interpreter::sto_instr<P5::set_t>();
+
+template<>
+void Interpreter::ldc_instr<P5::set_t>(int type);
+
+template<>
+void Interpreter::ind_instr<P5::set_t>(bool is_set);
 
 /*#if (with_set_push) == 1                      \
 	case offset+2: (func)<P5::set_t>(true); break;       \
@@ -131,16 +162,37 @@ Interpreter::file_info::file_info(P5::addr_t addr) {
 	} else {
 		name = std::string("p5_temp_") + std::to_string(addr) + ".txt";
 	}
-	strm = std::fstream(name, std::ofstream::out | std::ofstream::trunc);
+//	printf("open %s\n", name.c_str());
+	strm = std::fstream(name, std::fstream::in | std::fstream::out | std::fstream::trunc);
+}
+
+Interpreter::file_info::~file_info() {
+//	std::cout << "closing " << name << std::endl;
+	strm.close();
 }
 
 void Interpreter::file_info::reopen() {
-	strm.open(name, std::ofstream::out | std::ofstream::trunc);
+//	printf("reopen %s\n", name.c_str());
+	strm.close();
+	strm.open(name, std::fstream::in | std::fstream::out | std::fstream::trunc);
 }
 
 void Interpreter::run() {
 	files.emplace(PRD_FILE_ADDR, PRD_FILE_ADDR);
 	files.emplace(PRR_FILE_ADDR, PRR_FILE_ADDR);
+
+//	TODO: DEBUG
+//	auto &info = get_out_file_strm(pc_top+40);
+//	auto &strm = info.strm;
+//	std::cout << info.name << std::endl;
+//	auto strm = std::fstream("test.txt", std::fstream::in | std::fstream::out | std::fstream::trunc);
+//	strm << "test write";
+//	strm.write("writ", 4);
+//	std::cout << strm.fail() << strm.is_open() << std::endl;
+//	strm.close();
+//	return;
+//	exit(1);
+	//DEBUG
 
 	printf("running program\n");
 	pc = 0;
@@ -150,7 +202,7 @@ void Interpreter::run() {
 
 	while (interpreting) {
 		auto op_code = get_pc<P5::ins_t>();
-//		printf("running op_code %d %s\n", op_code, Assembler::op_codes[op_code].name.c_str());
+//		printf("running op_code %d %s, pc %d\n", op_code, Assembler::op_codes[op_code].name.c_str(), pc-1);
 		switch (op_code) {
 			//lod
 			CASES_WITH_PUSH(0, 105, lod_instr)
@@ -216,6 +268,7 @@ void Interpreter::run() {
 				mp = sp - (p+mark_stack_size);
 				put_val_to_addr(store, mp+ms_ret_addr_off, pc);
 				pc = q;
+//				printf("jmp to pc %d\n", pc);
 				break;
 			}
 
@@ -288,6 +341,7 @@ void Interpreter::run() {
 			//ujp
 			case 23: {
 				pc = get_pc<P5::addr_t>();
+//				printf("jmp to pc %d\n", pc);
 				break;
 			}
 			//fjp
@@ -296,6 +350,7 @@ void Interpreter::run() {
 				auto i = pop_stack<P5::int_t>();
 				if (i == 0) {
 					pc = q;
+//					printf("jmp to pc %d\n", pc);
 				}
 				break;
 			}
@@ -304,6 +359,7 @@ void Interpreter::run() {
 				auto q = get_pc<P5::addr_t>();
 				auto i = pop_stack<P5::int_t>();
 				pc = i * 5 + q;
+//				printf("jmp to pc %d\n", pc);
 				break;
 			}
 
@@ -335,7 +391,8 @@ void Interpreter::run() {
 			
 			//eof
 			case 27: {
-				auto file_addr = get_pc<P5::addr_t>();
+				auto file_addr = pop_stack<P5::addr_t>();
+//				printf("file addr %d %d\n", file_addr, file_addr-pc_top);
 				auto &in_strm = get_in_strm(file_addr);
 				push_stack((P5::bool_t) is_eof(in_strm));
 				break;
@@ -543,6 +600,7 @@ void Interpreter::run() {
 				auto p = get_pc<P5::lvl_t>();
 				auto q = get_pc<P5::addr_t>();
 				pc = q;
+//				printf("jmp to pc %d\n", pc);
 				mp = get_base_addr(p);
 				sp = get_val_at_addr<P5::addr_t>(store, mp+ms_stack_bottom_off);
 				ep = get_val_at_addr<P5::addr_t>(store, mp+ms_ep_cur_off);
@@ -556,6 +614,7 @@ void Interpreter::run() {
 				put_val_to_addr(store, mp+ms_st_link_off, get_val_at_addr<P5::addr_t>(store, ad));
 				put_val_to_addr(store, mp+ms_ret_addr_off, pc);
 				pc = get_val_at_addr<P5::addr_t>(store, ad+4); //size of pointer
+//				printf("jmp to pc %d\n", pc);
 				break;
 			}
 			//lpa
@@ -594,6 +653,7 @@ void Interpreter::run() {
 				auto i = pop_stack<P5::int_t>();
 				if (i != 0) {
 					pc = q;
+//					printf("jmp to pc %d\n", pc);
 				}
 				break;
 			}
@@ -663,7 +723,7 @@ void Interpreter::call_sp(P5::addr_t sp_code) {
 		}
 		//put
 		case 1: {
-			printf("put\n");
+//			printf("put\n");
 			auto addr = pop_stack<P5::addr_t>();
 			auto &out_strm = get_out_strm(addr);
 			auto c = get_val_at_addr<P5::char_t>(store, addr+1);
@@ -691,6 +751,11 @@ void Interpreter::call_sp(P5::addr_t sp_code) {
 			put_val_to_addr(store, put_addr, blk_addr);
 			break;
 		}
+		//dsp release heap space
+		case 26: {
+//			TODO: implement
+			break;
+		}
 		//wln
 		case 5: {
 			auto ad = pop_stack<P5::addr_t>();
@@ -705,6 +770,12 @@ void Interpreter::call_sp(P5::addr_t sp_code) {
 			auto width = pop_stack<P5::int_t>();
 			auto str_addr = pop_stack<P5::addr_t>();
 			auto file_addr = pop_stack<P5::addr_t>();
+			//DEBUG
+//			printf("wrs pc %d, l %d, w %d ", pc-5, len, width);
+//			for (int i = 0; i < len; i++) {
+//				printf("%c(%d)", (char)store[str_addr + i], (char)store[str_addr + i]);
+//			}
+			//DEBUG
 			push_stack(file_addr);
 			auto &out_strm = get_out_strm(file_addr);
 			if (width > len) {
@@ -721,6 +792,7 @@ void Interpreter::call_sp(P5::addr_t sp_code) {
 		}
 		//wri
 		case 8: {
+//			printf("int pc %d", pc-5);
 			write<P5::int_t>();
 			break;
 		}
@@ -731,11 +803,13 @@ void Interpreter::call_sp(P5::addr_t sp_code) {
 		}
 		//wrc
 		case 10: {
+//			printf("char pc %d ", pc-5);
 			write<P5::char_t>();
 			break;
 		}
-		//wrc
+		//wrb
 		case 24: {
+//			printf("char ");
 			write<P5::bool_t>();
 			break;
 		}
@@ -858,6 +932,7 @@ P5::addr_t Interpreter::get_base_addr(P5::ins_t p) {
 template<typename T>
 void Interpreter::push_stack(T val) {
 	//TODO: check for sp < ep
+//	std::cout << "push " << val << std::endl;
 	put_val_to_addr(store, sp, val);
 	sp += sizeof(T);
 }
@@ -870,6 +945,12 @@ template<>
 void Interpreter::push_stack(P5::char_t val) {
 	push_stack((P5::int_t)val);
 }
+template<>
+void Interpreter::push_stack(P5::set_t val) {
+//	printf("push set %d\n", val);
+	put_val_to_addr(store, sp, val);
+	sp += P5::set_size;
+}
 
 template<typename T>
 T Interpreter::pop_stack() {
@@ -879,6 +960,7 @@ T Interpreter::pop_stack() {
 	}
 	T val;
 	get_val_at_addr_by_ptr(store, sp, (unsigned char *) &val, sizeof(T));
+//	std::cout << "pop " << val << std::endl;
 	return val;
 }
 template<>
@@ -891,6 +973,18 @@ P5::char_t Interpreter::pop_stack() {
 	return pop_stack<P5::int_t>();
 }
 
+template<>
+P5::set_t Interpreter::pop_stack() {
+	sp -= P5::set_size;
+	if (sp < mp + mark_stack_size) {
+		P5_ERR("stack underflow sp %d, mp %d\n", sp, mp)
+	}
+	P5::set_t val;
+	get_val_at_addr_by_ptr(store, sp, (unsigned char *) &val, sizeof(P5::set_t));
+//	printf("pop set %d\n", val);
+	return val;
+}
+
 template<typename T>
 T Interpreter::get_pc() {
 	auto val = get_val_at_addr<T>(store, pc);
@@ -898,14 +992,33 @@ T Interpreter::get_pc() {
 	return val;
 }
 
+template<>
+void Interpreter::lod_instr<P5::set_t>(bool is_set) {
+	auto p = get_pc<P5::lvl_t>();
+	auto q = get_pc<P5::addr_t>();
+	auto val = get_val_at_addr<P5::set_t>(store, get_base_addr(p) + q);
+//	printf("lod set %d, p %d, q %d\n", val, p, q);
+//	val = set_storage->notify_push(val);
+	push_stack(val);
+}
+
 template<typename T>
 void Interpreter::lod_instr(bool is_set) {
 	auto p = get_pc<P5::lvl_t>();
 	auto q = get_pc<P5::addr_t>();
 	auto val = get_val_at_addr<T>(store, get_base_addr(p) + q);
-	if (is_set) {
-		val = set_storage->notify_push(val);
-	}
+//	if (is_set) {
+//		val = set_storage->notify_push(val);
+//	}
+	push_stack(val);
+}
+
+template<>
+void Interpreter::ldo_instr<P5::set_t>(bool is_set) {
+	auto q = get_pc<P5::addr_t>();
+	auto val = get_val_at_addr<P5::set_t>(store, pc_top + q);
+	val = set_storage->get_id(val);
+//	printf("ldo set %d, q %d\n", val, q);
 	push_stack(val);
 }
 
@@ -913,10 +1026,20 @@ template<typename T>
 void Interpreter::ldo_instr(bool is_set) {
 	auto q = get_pc<P5::addr_t>();
 	auto val = get_val_at_addr<T>(store, pc_top + q);
-	if (is_set) {
-		val = set_storage->notify_push(val);
-	}
+//	if (is_set) {
+//		val = set_storage->notify_push(val);
+//	}
 	push_stack(val);
+}
+
+template<>
+void Interpreter::str_instr<P5::set_t>() {
+	auto p = get_pc<P5::lvl_t>();
+	auto q = get_pc<P5::addr_t>();
+	auto val = pop_stack<P5::set_t>();
+//	printf("str set %d, p %d, q %d\n", val, p, q);
+//	val = set_storage->get_id(val);
+	put_val_to_addr(store, get_base_addr(p) + q, val);
 }
 
 template<typename T>
@@ -928,6 +1051,16 @@ void Interpreter::str_instr() {
 	put_val_to_addr(store, get_base_addr(p) + q, val);
 }
 
+template<>
+void Interpreter::sro_instr<P5::set_t>() {
+	auto q = get_pc<P5::addr_t>();
+	//doesn't need to push set index (-1 +1)
+	auto val = pop_stack<P5::set_t>();
+//	printf("sro set %d, q %d\n", val, q);
+//	val = set_storage->get_id(val);
+	put_val_to_addr(store, pc_top + q, val);
+}
+
 template<typename T>
 void Interpreter::sro_instr() {
 	auto q = get_pc<P5::addr_t>();
@@ -936,11 +1069,29 @@ void Interpreter::sro_instr() {
 	put_val_to_addr(store, pc_top + q, val);
 }
 
+template<>
+void Interpreter::sto_instr<P5::set_t>() {
+	auto val = pop_stack<P5::set_t>();
+	auto addr = pop_stack<P5::addr_t>();
+//	printf("sto set %d, addr %d\n", val, addr);
+//	val = set_storage->get_id(val);
+	put_val_to_addr(store, addr, val);
+}
+
 template<typename T>
 void Interpreter::sto_instr() {
 	auto val = pop_stack<T>();
 	auto addr = pop_stack<P5::addr_t>();
 	put_val_to_addr(store, addr, val);
+}
+
+template<>
+void Interpreter::ldc_instr<P5::set_t>(int type) {
+	auto set_id = get_pc<P5::set_t>();
+//	printf("ldc %d ", set_id);
+//	set_id = set_storage->notify_push(set_id);
+//	printf("%d\n", set_id);
+	push_stack(set_id);
 }
 
 template<typename T>
@@ -970,15 +1121,25 @@ void Interpreter::ldc_instr(int type) {
 	}
 }
 
+template<>
+void Interpreter::ind_instr<P5::set_t>(bool is_set) {
+	auto q = get_pc<P5::addr_t>();
+	auto addr = pop_stack<P5::addr_t>();
+	auto val = get_val_at_addr<P5::set_t>(store, addr + q);
+//	printf("ind set %d, q %d, addr %d\n", val, q, addr);
+//	val = set_storage->notify_push(val);
+	push_stack(val);
+}
+
 template<typename T>
 void Interpreter::ind_instr(bool is_set) {
 	auto q = get_pc<P5::addr_t>();
 	auto addr = pop_stack<P5::addr_t>();
 	T val = get_val_at_addr<T>(store, addr + q);
-	//TODO: make functions like ind_set_instr for this
-	if (is_set) {
-		val = set_storage->notify_push(val);
-	}
+//	TODO: make functions like ind_set_instr for this
+//	if (is_set) {
+//		val = set_storage->notify_push(val);
+//	}
 	push_stack(val);
 }
 
@@ -1017,9 +1178,22 @@ void Interpreter::write() {
 	auto val = pop_stack<T>();
 	auto addr = pop_stack<P5::addr_t>();
 	push_stack(addr);
+//	printf("out addr %d ", addr-pc_top);
 	auto &out_strm = get_out_strm(addr);
 	out_strm << std::setw(w) << val;
 }
+
+////TODO: DEBUG
+//template<>
+//void Interpreter::write<P5::char_t>() {
+//	auto w = pop_stack<P5::int_t>();//width
+//	auto val = pop_stack<P5::char_t>();
+//	auto addr = pop_stack<P5::addr_t>();
+//	push_stack(addr);
+//	auto &out_strm = get_out_strm(addr);
+////	printf("%c(%d) pc %d ", val, val, pc-5);
+////	out_strm << std::setw(w) << val;
+//}
 
 template<>
 void Interpreter::write<P5::bool_t>() {
@@ -1045,6 +1219,18 @@ void Interpreter::read() {
 	auto &in_strm = get_in_strm(file_addr);
 	T val;
 	in_strm >> val;
+	put_val_to_addr(store, put_addr, val);
+}
+
+template<>
+void Interpreter::read<P5::char_t>() {
+	auto put_addr = pop_stack<P5::addr_t>();
+	auto file_addr = pop_stack<P5::addr_t>();
+	push_stack(file_addr);
+	auto &in_strm = get_in_strm(file_addr);
+	P5::char_t val;
+	in_strm >> std::noskipws >> val;
+
 	put_val_to_addr(store, put_addr, val);
 }
 
@@ -1111,7 +1297,6 @@ std::istream &Interpreter::get_in_strm(P5::addr_t file_addr) {
 	}
 }
 
-
 Interpreter::file_info &Interpreter::get_in_file_strm(P5::addr_t file_addr) {
 	file_addr -= pc_top;
 	switch (file_addr) {
@@ -1132,7 +1317,16 @@ Interpreter::file_info &Interpreter::get_in_file_strm(P5::addr_t file_addr) {
 }
 
 bool Interpreter::is_eof(std::istream& strm) {
+//	auto cur_pos = strm.tellg();
+//	strm.seekg(0, std::ios::end);
+//	auto size = strm.tellg();
+////	printf("eof %ld %ld\n", (long)cur_pos, (long)size);
+//	strm.seekg(cur_pos, std::ios_base::beg);
 	auto next = strm.peek();
+//	printf("next %d\n", next);
+//	if ((long)cur_pos == -1) {
+//		P5_ERR("eof err, read %td\n", strm.gcount());
+//	}
 	return next == std::istream::traits_type::eof();
 }
 
@@ -1201,6 +1395,7 @@ void Interpreter::bin_op_instr(int sign) {
 void Interpreter::bin_op_set_instr(int sign) {
 	auto s2_id = pop_stack<P5::set_t>();
 	auto s1_id = pop_stack<P5::set_t>();
+//	printf("bin op on sets %d %d\n", s1_id, s2_id);
 	auto s2 = set_storage->get_set(s2_id);
 	auto s1 = set_storage->get_set(s1_id);
 	switch (sign) {

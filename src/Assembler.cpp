@@ -56,12 +56,14 @@ void Assembler::load() {
 	pc = 0;
 //	dump();
 	generate();
-//	dump();
-//	lb_table->dump();
+	dump();
+	lb_table->dump();
 }
 
 void Assembler::dump() {
-	printf("PROGCODE\n");
+	FILE *dmp = fopen("store_dump.txt", "w");
+
+	fprintf(dmp, "PROGCODE\n");
 	for (P5::addr_t i = 0; i < pc_top;) {
 		auto op_code = get_val_at_addr<P5::ins_t>(store, i);
 		auto start = i;
@@ -69,9 +71,9 @@ void Assembler::dump() {
 		auto info = op_codes[op_code];
 		
 		// auto op_name = instr[op_code];
-		printf("[%d] %d %s ", start, op_code, op_codes[op_code].name.c_str());
+		fprintf(dmp, "[%d] %d %s ", start, op_code, op_codes[op_code].name.c_str());
 		if (info.has_p) {
-			printf("%d ", get_val_at_addr<P5::lvl_t>(store, i));
+			fprintf(dmp, "%d ", get_val_at_addr<P5::lvl_t>(store, i));
 			i += sizeof(P5::lvl_t);
 		}
 		
@@ -80,15 +82,17 @@ void Assembler::dump() {
 			P5::addr_t q = 0;
 			get_val_at_addr_by_ptr(store, i, (unsigned char *) &q, info.q_len);
 			i += info.q_len;
-			printf("%d ", q);
+			fprintf(dmp, "%d ", q);
 		}
-		printf("[%d bytes]\n", i-start);
+		fprintf(dmp, "[%d bytes]\n", i-start);
 	}
-	printf(".\n.\n.\n");
-	printf("CONSTANTS\n");
+	fprintf(dmp, ".\n.\n.\n");
+	fprintf(dmp, "CONSTANTS\n");
 	for (P5::addr_t i = cp+1; i < P5::max_store; i++) {
-		printf("%d\n", store[i]);
+		fprintf(dmp, "%d\n", store[i]);
 	}
+
+	fclose(dmp);
 }
 
 void Assembler::generate() {
@@ -145,7 +149,7 @@ void Assembler::generate() {
 void Assembler::assemble() {
 	std::string name = lexer->get<std::string>();
 //	std::string name = "tes";
-//	printf("instr %s\n", name.c_str());
+//	printf("instr %s, pc %d\n", name.c_str(), pc);
 	auto ins_it = instr.find(name);
 	if (ins_it == instr.end()) {
 		P5_ERR("illegal instruction: %s\n", name.c_str());
@@ -364,7 +368,7 @@ void Assembler::assemble() {
 //				std::cout << "char " << (int)c << std::endl;
 			}
 
-			int set_id = set_storage->create_set(std::move(set));
+			P5::set_t set_id = set_storage->create_set(std::move(set));
 			store_pc(op_code);
 			store_pc(set_id);
 			break;
@@ -405,14 +409,25 @@ void Assembler::assemble() {
 			auto c = lexer->get<char>();
 			expect_char('\'', c);
 //			printf("lca params: %d %c\n", l, c);
-			std::string str(l, ' ');
-			c = lexer->get<char>();
+			std::string str;
 			int i = 0;
-			while (c != '\'') {
-				str[i] = c;
+			char check_char;
+			while (true) {
+				if (lexer->is_eof()) {
+					P5_ERR("unexpected eof\n")
+				}
 				c = lexer->get<char>();
+				check_char = c;
+				if (c == '\'' && lexer->peek() == '\'') {
+					c = lexer->get<char>();
+					check_char = ' ';
+				}
+				if (check_char == '\'') {
+					break;
+				}
+				str += c;
 				i++;
-			}
+			};
 //			printf("lca string: %s\n", str.c_str());
 			if (pc > cp - l) {
 				P5_ERR("Constant table overflow");
@@ -575,7 +590,7 @@ void Assembler::init() {
 	ins_op("lda", 4, true, P5::int_size)
 	ins_op("lao", 5, false, P5::int_size)
 	ins_op("stoi", 6, false, 0)
-	ins_op("ldc", 7, false, P5::int_size)
+	ins_op("ldc", 7, false, sizeof(P5::set_t));
 	ins_op("indi", 9, false, P5::int_size)
 	ins_op("inci", 10, false, P5::int_size)
 	ins_op("mst", 11, true, 0)
