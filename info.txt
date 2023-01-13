@@ -1,0 +1,19 @@
+my pint
+
+debug
+real    6m14.775s
+user    6m10.266s
+sys     0m0.688s
+
+release
+real    0m47.950s
+user    0m47.484s
+sys     0m0.328s
+
+
+original pint
+real	3m2,581s
+user	3m2,058s
+sys	0m0,463s
+
+но тут генерируется меньше кода почему-то
