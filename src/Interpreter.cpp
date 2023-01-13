@@ -27,14 +27,14 @@ P5::addr_t Interpreter::nil_val = 1;
 int Interpreter::mark_stack_size = 32;
 
 template<>
-void Interpreter::push_stack(P5::bool_t val);
+void Interpreter::push_stack<P5::bool_t>(P5::bool_t val);
 template<>
-void Interpreter::push_stack(P5::set_t val);
+void Interpreter::push_stack<P5::set_t>(P5::set_t val);
 
 template<>
-P5::char_t Interpreter::pop_stack();
+P5::char_t Interpreter::pop_stack<P5::char_t>();
 template<>
-P5::set_t Interpreter::pop_stack();
+P5::set_t Interpreter::pop_stack<P5::set_t>();
 
 template<>
 void Interpreter::write<P5::bool_t>();

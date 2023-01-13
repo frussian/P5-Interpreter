@@ -34,7 +34,7 @@ begin
   writeln;
   writeln('union');
 
-  s2 := [1, 123, 4, 2];
+  s2 := [1, 2, 4, 123];
   s3 := [1, 2, 5, 123];
   s4 := s2 + s3;
   if 1 in s4 then writeln('1');
