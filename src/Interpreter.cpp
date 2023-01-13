@@ -155,15 +155,19 @@ void Interpreter::ind_instr<P5::set_t>(bool is_set);
 #pragma ide diagnostic ignored "UnreachableCode"
 
 Interpreter::file_info::file_info(P5::addr_t addr) {
+	std::ios_base::openmode flags;
 	if (addr == PRD_FILE_ADDR) {
 		name = "prd";
+		flags = std::fstream::in;
 	} else if (addr == PRR_FILE_ADDR) {
 		name = "prr";
+		flags = std::fstream::out;
 	} else {
 		name = std::string("p5_temp_") + std::to_string(addr) + ".txt";
+		flags = std::fstream::in | std::fstream::out | std::fstream::trunc;
 	}
 //	printf("open %s\n", name.c_str());
-	strm = std::fstream(name, std::fstream::in | std::fstream::out | std::fstream::trunc);
+	strm = std::fstream(name, flags);
 }
 
 Interpreter::file_info::~file_info() {
@@ -174,7 +178,15 @@ Interpreter::file_info::~file_info() {
 void Interpreter::file_info::reopen() {
 //	printf("reopen %s\n", name.c_str());
 	strm.close();
-	strm.open(name, std::fstream::in | std::fstream::out | std::fstream::trunc);
+	std::ios_base::openmode flags;
+	if (name == "prd") {
+		flags = std::fstream::in;
+	} else if (name == "prr") {
+		flags = std::fstream::out;
+	} else {
+		flags = std::fstream::in | std::fstream::out | std::fstream::trunc;
+	}
+	strm.open(name, flags);
 }
 
 void Interpreter::run() {
@@ -1230,7 +1242,10 @@ void Interpreter::read<P5::char_t>() {
 	auto &in_strm = get_in_strm(file_addr);
 	P5::char_t val;
 	in_strm >> std::noskipws >> val;
-
+	if (val == '\n') {
+		val = ' ';
+	}
+//	printf(" rdc %c(%d) ", val, val);
 	put_val_to_addr(store, put_addr, val);
 }
 

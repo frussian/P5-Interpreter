@@ -428,19 +428,22 @@ void Assembler::assemble() {
 				str += c;
 				i++;
 			};
+//			l = str.length();
+			while (str.length() < l) {
+				str += ' ';
+			}
 //			printf("lca string: %s\n", str.c_str());
 			if (pc > cp - l) {
 				P5_ERR("Constant table overflow");
 			}
 			cp -= l-1;
 			//TODO: include zero at the end?
-			put_val_to_addr_by_ptr(store, cp, (unsigned char *) str.c_str(), str.size());
+			put_val_to_addr_by_ptr(store, cp, (unsigned char *) str.c_str(), l);
 			P5::addr_t q = cp;
 			cp--;
 			store_pc(op_code);
 			store_pc(q);
-			break;
-		}
+			break;		}
 		//ret
 		case 14:
 		case 128:

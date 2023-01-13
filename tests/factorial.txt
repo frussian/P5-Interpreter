@@ -47,7 +47,7 @@ l   5=         35
 l   8
  ents       l   9
  ente       l  10
- ldci          20
+ ldci          5
  sroi         40
 :17
  mst           0

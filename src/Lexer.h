@@ -30,6 +30,13 @@ private:
 	int line = 1;
 };
 
+template<>
+char Lexer::get<char>();
+template<>
+unsigned char Lexer::get<unsigned char>();
+template <>
+std::string Lexer::get<std::string>();
+
 template<typename T> T Lexer::get() {
 	T val;
 	strm >> std::skipws >> val;

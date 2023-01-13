@@ -35,10 +35,12 @@ int Lexer::line_num() {
 template<> 
 char Lexer::get<char>() {
 	char val = ' ';
+//	printf("get char %c(%d)\n", val, val);
 	if (strm.peek() == '\n') {
 		return val;
 	}
 	strm >> std::noskipws >> val;
+//	printf("get char %c(%d)\n", val, val);
 	return val;
 }
 

@@ -1,4 +1,4 @@
-program hello(input, output);
+program test1(input, output);
 var
   i, l: integer;
 begin
