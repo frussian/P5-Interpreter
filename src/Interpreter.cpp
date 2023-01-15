@@ -765,6 +765,9 @@ void Interpreter::call_sp(P5::addr_t sp_code) {
 		}
 		//dsp release heap space
 		case 26: {
+			//dsp stub
+			pop_stack<P5::addr_t>();
+			pop_stack<P5::addr_t>();
 //			TODO: implement
 			break;
 		}
@@ -927,7 +930,7 @@ void Interpreter::call_sp(P5::addr_t sp_code) {
 			break;
 		}
 		default: {
-			P5_ERR("unknown sp %d", sp_code)
+			P5_ERR("unsupported or unknown sp %d", sp_code)
 		}
 	}
 }
